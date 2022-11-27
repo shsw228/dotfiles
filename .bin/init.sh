@@ -4,6 +4,7 @@ if [ "$(uname)" != "Darwin" ] ; then
 	echo "This environment is not macOS."
 	exit 1
  else
+# Fetch gitignore
  mkdir -p ~/.config/git
  curl -fsSL 'https://raw.githubusercontent.com/github/gitignore/master/Global/macOS.gitignore' > ~/.config/git/ignore
 fi
