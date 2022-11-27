@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# スクリプトが存在するディレクトリを元に.から始まるファイルを検索してシンボリックリンクを張る
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 for dotfile in "${SCRIPT_DIR}"/.??* ; do
