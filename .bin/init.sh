@@ -5,7 +5,7 @@ if [ "$(uname)" != "Darwin" ] ; then
 	exit 1
  else
  
-# Fetch gitignore
+# gitignoreは公式から引っ張ってきてそのまま使う
  mkdir -p ~/.config/git
  curl -fsSL 'https://raw.githubusercontent.com/github/gitignore/master/Global/macOS.gitignore' > ~/.config/git/ignore
 fi
