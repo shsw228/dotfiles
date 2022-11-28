@@ -1,0 +1,33 @@
+tap "homebrew/bundle"
+tap "homebrew/cask"
+tap "homebrew/core"
+brew "cmake"
+brew "ffmpeg"
+brew "gh"
+brew "git"
+brew "mas"
+brew "spark"
+brew "zsh-autosuggestions"
+brew "zsh-completions"
+brew "zsh-git-prompt"
+cask "1password"
+cask "alfred"
+cask "charles"
+cask "fork"
+cask "google-chrome"
+cask "meetingbar"
+cask "microsoft-auto-update"
+cask "microsoft-office"
+cask "microsoft-teams"
+cask "notion"
+cask "postman"
+cask "rectangle"
+cask "visual-studio-code"
+cask "vlc"
+cask "xcodes"
+cask "zoom"
+mas "1Password for Safari", id: 1569813296
+mas "Amphetamine", id: 937984704
+mas "Keynote", id: 409183694
+mas "Spark", id: 1176895641
+mas "uBlacklist for Safari", id: 1547912640
