@@ -5,6 +5,8 @@ else
 export PATH=/usr/local/bin/brew:$PATH
 fi
 
+export LANG=ja_JP.UTF-8
+
 
 # github cli Completion
 eval "$(gh completion -s zsh)"
@@ -17,6 +19,8 @@ SAVEHIST=1000000            # 上述のファイルに保存する履歴のサ�
 # share .zshhistory
 setopt inc_append_history   # 実行時に履歴をファイルにに追加していく
 setopt share_history        # 履歴を他のシェルとリアルタイム共有する
+setopt hist_reduce_blanks	   # 履歴に空白を入れない
+setopt hist_ignore_all_dups # 履歴を重複しない
 
 # Monterey以降pythonコマンドが存在しないためのエイリアス
 alias python="python3"
@@ -44,6 +48,9 @@ zstyle ':completion:*' group-name ''
 setopt correct
 SPROMPT="correct: $RED%R$DEFAULT -> $GREEN%r$DEFAULT ? [Yes/No/Abort/Edit] => "
 
+
+
+
 PROMPT="%F{green}%n%f %F{cyan}($(arch))%f:%F{blue}%~%f"$'\n'"%# "
 
 PROMPT='%F{034}%n%f %F{036}($(arch))%f:%F{020}%~%f $(git_super_status)'
@@ -68,3 +75,15 @@ gas() {
 }
 
 alias gcm="git commit -m"
+
+# Github CLIを利用して最初の諸々をいいかんじにする　ref:https://zenn.dev/torahack/articles/d6b760fd11bf3a
+
+gcre() {
+    git init && git add . && git status && git commit -m "First commit"
+    echo "Type repository name: " && read name;
+    echo "Type repository description: " && read description;
+    gh repo create ${name} --description ${description}
+    git remote add origin https://github.com/deatiger/${name}.git
+    git checkout -b develop;
+    git push -u origin develop;
+}
