@@ -1,0 +1,46 @@
+# エディターの補完を設定スキーマに合わせて取得
+"$schema" = 'https://starship.rs/config-schema.json'
+
+format = """
+$username\
+$directory\
+$cmd_duration\
+$line_break\
+$character\
+"""
+right_format = """
+$git_branch\
+$git_state\
+$git_status\
+"""
+
+
+# シェルのプロンプトの間に空行を挿入する
+add_newline = true
+
+
+[character]
+success_symbol = "[❯](purple)"
+error_symbol = "[❯](red)"
+vimcmd_symbol = "[❮](green)"
+
+[username]
+show_always = false
+format = '[$user ]($style)'
+
+[cmd_duration]
+format = '\[[⏱ $duration]($style)\]'
+[directory]
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[git_branch]
+format = '\[[$symbol$branch]($style)\]'
+
+[git_status]
+format = '([\[$all_status$ahead_behind\]]($style))'
+
+[git_state]
+format = '\([$state( $progress_current/$progress_total)]($style)\) '
+style = "bright-black"

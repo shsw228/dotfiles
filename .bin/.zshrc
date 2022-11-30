@@ -29,7 +29,7 @@ alias python="python3"
  if type brew &>/dev/null; then
     FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
     source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-    source $(brew --prefix)/opt/zsh-git-prompt/zshrc.sh
+    source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
     
 
 	autoload -Uz compinit && compinit
@@ -48,22 +48,6 @@ zstyle ':completion:*' group-name ''
 setopt correct
 SPROMPT="correct: $RED%R$DEFAULT -> $GREEN%r$DEFAULT ? [Yes/No/Abort/Edit] => "
 
-
-
-
-PROMPT="%F{green}%n%f %F{cyan}($(arch))%f:%F{blue}%~%f"$'\n'"%# "
-
-PROMPT='%F{034}%n%f %F{036}($(arch))%f:%F{020}%~%f $(git_super_status)'
-PROMPT+=""$'\n'"%# "
-
-add_newline() {
-  if [[ -z $PS1_NEWLINE_LOGIN ]]; then
-    PS1_NEWLINE_LOGIN=true
-  else
-    printf '\n'
-  fi
-}
-precmd() { add_newline }
 
 alias ls="ls -FG"
 alias ll="ls -l"
@@ -87,3 +71,5 @@ gcre() {
     git checkout -b develop;
     git push -u origin develop;
 }
+
+eval "$(starship init zsh)"
