@@ -25,7 +25,8 @@ alias python="python3"
  if type brew &>/dev/null; then
     FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
     source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-    source $(brew --prefix)/opt/zsh-git-prompt/zshrc.sh    
+    source $(brew --prefix)/opt/zsh-git-prompt/zshrc.sh
+    
 
 	autoload -Uz compinit && compinit
 	autoload -Uz colors && colors
@@ -56,3 +57,14 @@ add_newline() {
   fi
 }
 precmd() { add_newline }
+
+alias ls="ls -FG"
+alias ll="ls -l"
+alias lla="ls -la"
+
+gas() {
+  git add -A;
+  git status;
+}
+
+alias gcm="git commit -m"
