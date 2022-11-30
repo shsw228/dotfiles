@@ -7,8 +7,9 @@ for dotfile in "${SCRIPT_DIR}"/.??* ; do
     [[ "$dotfile" == "${SCRIPT_DIR}/.git" ]] && continue
     [[ "$dotfile" == "${SCRIPT_DIR}/.github" ]] && continue
     [[ "$dotfile" == "${SCRIPT_DIR}/.DS_Store" ]] && continue
-
+    
     ln -fnsv "$dotfile" "$HOME"
 done
+ln -fnsv "${SCRIPT_DIR}/starship.toml" "$HOME/.config" 
 
 echo "✅ link.sh is done."
