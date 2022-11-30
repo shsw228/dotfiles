@@ -1,0 +1,26 @@
+[user]
+	name = Kengo Tate
+	email = tate.kng0228@gmail.com
+[github]
+	user = shsw228
+
+[core]
+	pager = less -R
+	editor = nano
+	quotepath = false
+	excludesfile = ~/.gitignore
+
+[color]
+ui = true
+
+[alias]
+	aa = !git add . && git status
+	s  = status
+	st = status
+	df = diff
+	co = commit
+	br = branch
+	ps = push
+	pl = pull
+	ck = checkout
+	graph = log --pretty=format:'%Cgreen[%cd] %Cblue%h %Cred<%cn> %Creset%s' --date=short  --decorate --graph --branches --tags --remotes

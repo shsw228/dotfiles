@@ -52,7 +52,6 @@ SPROMPT="correct: $RED%R$DEFAULT -> $GREEN%r$DEFAULT ? [Yes/No/Abort/Edit] => "
 alias ls="ls -FG"
 alias ll="ls -l"
 alias lla="ls -la"
-
 gas() {
   git add -A;
   git status;
