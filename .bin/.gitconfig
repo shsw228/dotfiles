@@ -4,6 +4,7 @@
 [github]
 	user = shsw228
 
+
 [core]
 	pager = less -R
 	editor = nano
@@ -24,3 +25,4 @@ ui = true
 	pl = pull
 	ck = checkout
 	graph = log --pretty=format:'%Cgreen[%cd] %Cblue%h %Cred<%cn> %Creset%s' --date=short  --decorate --graph --branches --tags --remotes
+        alias = !git config --list | grep ^alias\.
