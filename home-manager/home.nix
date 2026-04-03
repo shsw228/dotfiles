@@ -7,6 +7,7 @@
 
 {
   imports = [
+    ./karabiner.nix
     ./zsh.nix
   ];
 
@@ -16,11 +17,19 @@
   home.homeDirectory = homeDirectory;
   home.stateVersion = "25.11"; # Please read the comment before changing.
   home.packages = with pkgs; [
+    aria2
     bat
     gh
     ghq
     git
+    gitflow
+    gnumake
+    lazygit
+    lua
+    neovim
     nixfmt
+    nodejs
+    pnpm
   ];
   home.file = {
     ".config/git/config".source = ./git/config;

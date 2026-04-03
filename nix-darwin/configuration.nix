@@ -5,13 +5,6 @@
   self,
   ...
 }:
-let
-  opCli = "/opt/homebrew/bin/op";
-  opConfigDir = "${homeDirectory}/.config/1password";
-  opServiceAccountTokenFile = "${opConfigDir}/service-account-token";
-  opServiceAccountTokenRef = "op://Personal/Machine Bootstrap/service_account_token";
-  notchNookLicenseRefBase = "op://machine-secrets/NotchNook License";
-in
 {
   system = {
     stateVersion = "6";
@@ -23,52 +16,36 @@ in
     ./aerospace.nix
     ./homebrew.nix
     ./home_manager.nix
+    ./notchnook.nix
+    ./raycast.nix
   ];
 
   nixpkgs.hostPlatform = "aarch64-darwin";
+  nixpkgs.config.allowUnfree = true;
+
+  fonts.packages = with pkgs; [
+    hack-font
+    moralerspace
+    nerd-fonts.hack
+  ];
 
   nix.enable = false;
+  environment.systemPackages = with pkgs; [
+    _1password-gui
+    _1password-cli
+    codex
+    discord
+    ghostty-bin
+    github-copilot-cli
+    google-chrome
+    karabiner-elements
+    obsidian
+    raycast
+    vscode
+  ];
 
   programs.zsh.enable = true;
   security.pam.services.sudo_local.touchIdAuth = true;
-
-  system.activationScripts.postActivation.text = ''
-    if [ -x "${opCli}" ]; then
-      service_account_token=""
-
-      if [ -r "${opServiceAccountTokenFile}" ]; then
-        service_account_token=$(/usr/bin/head -n 1 "${opServiceAccountTokenFile}" 2>/dev/null || true)
-      fi
-
-      if [ -z "$service_account_token" ]; then
-        bootstrap_token=$(/usr/bin/sudo -u ${username} env HOME=${homeDirectory} ${opCli} read '${opServiceAccountTokenRef}' 2>/dev/null || true)
-
-        if [ -n "$bootstrap_token" ]; then
-          /usr/bin/sudo -u ${username} /bin/mkdir -p "${opConfigDir}"
-          /usr/bin/sudo -u ${username} /bin/sh -c 'umask 077 && printf %s "$1" > "$2"' -- "$bootstrap_token" "${opServiceAccountTokenFile}"
-          service_account_token="$bootstrap_token"
-        fi
-      fi
-
-      notch_nook_email=""
-      notch_nook_key=""
-
-      if [ -n "$service_account_token" ]; then
-        notch_nook_email=$(/usr/bin/sudo -u ${username} env HOME=${homeDirectory} OP_SERVICE_ACCOUNT_TOKEN="$service_account_token" ${opCli} read '${notchNookLicenseRefBase}/email' 2>/dev/null || true)
-        notch_nook_key=$(/usr/bin/sudo -u ${username} env HOME=${homeDirectory} OP_SERVICE_ACCOUNT_TOKEN="$service_account_token" ${opCli} read '${notchNookLicenseRefBase}/license_key' 2>/dev/null || true)
-      fi
-
-      if [ -n "$notch_nook_email" ] && [ -n "$notch_nook_key" ]; then
-        notch_nook_key_active=$(${pkgs.jq}/bin/jq -cn \
-          --arg email "$notch_nook_email" \
-          --arg key "$notch_nook_key" \
-          '{ email: $email, key: $key }')
-
-        /usr/bin/sudo -u ${username} env HOME=${homeDirectory} \
-          /usr/bin/defaults write lo.cafe.NotchNook keyActive -string "$notch_nook_key_active"
-      fi
-    fi
-  '';
 
   system.defaults = {
     NSGlobalDomain = {
@@ -118,118 +95,6 @@ in
       "com.apple.dock" = {
         "wvous-br-corner" = 0;
         "wvous-br-modifier" = 0;
-      };
-      "com.apple.symbolichotkeys" = {
-        AppleSymbolicHotKeys = {
-          # 入力ソース切り替え系
-          "31" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 52 21 1835008 ];
-            };
-          };
-          # Mission Control / Exposé 系
-          "34" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 126 2490368 ];
-            };
-          };
-          "35" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 125 2490368 ];
-            };
-          };
-          # デスクトップ表示系
-          "37" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 103 131072 ];
-            };
-          };
-          # 入力ソース切り替え系
-          "51" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 64 33 1572864 ];
-            };
-          };
-          # キーボード輝度系
-          "55" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 107 524288 ];
-            };
-          };
-          "56" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 113 524288 ];
-            };
-          };
-          # メディア / ファンクションキー系
-          "62" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 111 0 ];
-            };
-          };
-          "63" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 111 131072 ];
-            };
-          };
-          # Dock 表示切り替え
-          "70" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 100 2 1310720 ];
-            };
-          };
-          # システム標準ショートカット
-          "73" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 53 1048576 ];
-            };
-          };
-          # Spaces 間移動
-          "80" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 123 8781824 ];
-            };
-          };
-          "82" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 124 8781824 ];
-            };
-          };
-          # 入力ソース切り替え
-          "156" = {
-            enabled = false;
-            value = {
-              type = "standard";
-              parameters = [ 65535 49 393216 ];
-            };
-          };
-        };
       };
     };
   };
