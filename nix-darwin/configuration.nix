@@ -1,4 +1,7 @@
 {
+  pkgs,
+  username,
+  homeDirectory,
   self,
   ...
 }:
@@ -6,11 +9,20 @@
   system = {
     stateVersion = "6";
     configurationRevision = self.rev or self.dirtyRev or null;
+    primaryUser = username;
   };
+  users.users.${username}.home = homeDirectory;
+  imports = [
+    ./aerospace.nix
+    ./homebrew.nix
+    ./home_manager.nix
+  ];
+
   nixpkgs.hostPlatform = "aarch64-darwin";
 
   nix.enable = false;
 
+  programs.zsh.enable = true;
   security.pam.services.sudo_local.touchIdAuth = true;
 
   system.defaults = {
