@@ -8,6 +8,7 @@
 {
   imports = [
     ./karabiner.nix
+    ./nvim.nix
     ./zsh.nix
   ];
 
