@@ -13,28 +13,28 @@
     };
   };
 
-  outputs = { 
-    nixpkgs, 
-	  home-manager, 
-	  nix-darwin, 
-	  ...
-	}:
-    
-	let
+  outputs =
+    {
+      self,
+      nixpkgs,
+      home-manager,
+      nix-darwin,
+    }:
+
+    let
       system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
     in
     {
       homeConfigurations."hume" = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-		modules = [
-		  ./home-manager/home.nix 
-		];
-     };
-	 darwinConfigurations."HumeBook-Air" = nix-darwin.lib.darwinSystem {
-      modules = [
-	  	./nix-darwin/configuration.nix
-		];
+        modules = [
+          ./home-manager/home.nix
+        ];
+      };
+      darwinConfigurations."HumeBook-Air" = nix-darwin.lib.darwinSystem {
+        specialArgs = { inherit self; }; # これがないとnix-darwinのモジュール内でhome-managerのモジュールを参照できない
+        modules = [ ./nix-darwin/configuration.nix ];
+      };
     };
-	};
 }
