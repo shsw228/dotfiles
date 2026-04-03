@@ -120,7 +120,6 @@ let
         "com.mitchellh.ghostty"
         "com.apple.Terminal"
         "com.googlecode.iterm2"
-        "net.kovidgoyal.kitty"
       ];
     };
   };
