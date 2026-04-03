@@ -1,5 +1,155 @@
 { pkgs, ... }:
 
+let
+  workspaces = {
+    browser = "1.Chrome";
+    terminal = "2.Terminal";
+    "3" = "3";
+    "4" = "4";
+    "5" = "5";
+    "6" = "6";
+    "7" = "7";
+    "8" = "8";
+    "9" = "9";
+    "10" = "10";
+  };
+  mainMonitorPattern = [
+    "^DELL U4025QW$"
+    "main"
+  ];
+  subMonitorPattern = [
+    "secondary"
+    "main"
+  ];
+  workspaceArg = workspace: "\"${workspace}\"";
+
+  mainBinding = {
+    alt-h = "focus --boundaries-action wrap-around-the-workspace left";
+    alt-j = "focus --boundaries-action wrap-around-the-workspace down";
+    alt-k = "focus --boundaries-action wrap-around-the-workspace up";
+    alt-l = "focus --boundaries-action wrap-around-the-workspace right";
+
+    alt-shift-s = "exec-and-forget screencapture -i -c";
+    alt-shift-tab = "focus-monitor --wrap-around next";
+    alt-tab = "workspace-back-and-forth";
+
+    alt-shift-h = "move left";
+    alt-shift-j = "move down";
+    alt-shift-k = "move up";
+    alt-shift-l = "move right";
+
+    alt-f = "fullscreen";
+    alt-slash = "layout tiles horizontal vertical";
+    alt-space = "layout floating tiling";
+
+    alt-1 = "workspace ${workspaceArg workspaces.browser}";
+    alt-2 = "workspace ${workspaceArg workspaces.terminal}";
+    alt-3 = "workspace ${workspaceArg workspaces."3"}";
+    alt-4 = "workspace ${workspaceArg workspaces."4"}";
+    alt-5 = "workspace ${workspaceArg workspaces."5"}";
+    alt-6 = "workspace ${workspaceArg workspaces."6"}";
+    alt-7 = "workspace ${workspaceArg workspaces."7"}";
+    alt-8 = "workspace ${workspaceArg workspaces."8"}";
+    alt-9 = "workspace ${workspaceArg workspaces."9"}";
+    alt-0 = "workspace ${workspaceArg workspaces."10"}";
+
+    alt-r = "mode resize";
+    alt-m = "mode move";
+    cmd-h = [ ];
+    cmd-alt-h = [ ];
+  };
+
+  moveToWorkspace = workspace: [
+    "move-node-to-workspace ${workspaceArg workspace}"
+    "mode main"
+  ];
+
+  moveBinding = {
+    alt-1 = moveToWorkspace workspaces.browser;
+    alt-2 = moveToWorkspace workspaces.terminal;
+    alt-3 = moveToWorkspace workspaces."3";
+    alt-4 = moveToWorkspace workspaces."4";
+    alt-5 = moveToWorkspace workspaces."5";
+    alt-6 = moveToWorkspace workspaces."6";
+    alt-7 = moveToWorkspace workspaces."7";
+    alt-8 = moveToWorkspace workspaces."8";
+    alt-9 = moveToWorkspace workspaces."9";
+    alt-0 = moveToWorkspace workspaces."10";
+    enter = "mode main";
+    esc = "mode main";
+  };
+
+  resizeBinding = {
+    h = "resize width -50";
+    j = "resize height +50";
+    k = "resize height -50";
+    l = "resize width +50";
+    enter = "mode main";
+    esc = "mode main";
+  };
+
+  workspaceAssignments = {
+    ${workspaces.browser} = mainMonitorPattern;
+    ${workspaces.terminal} = mainMonitorPattern;
+    ${workspaces."3"} = mainMonitorPattern;
+    ${workspaces."4"} = mainMonitorPattern;
+    ${workspaces."5"} = subMonitorPattern;
+    ${workspaces."6"} = mainMonitorPattern;
+    ${workspaces."7"} = mainMonitorPattern;
+    ${workspaces."8"} = mainMonitorPattern;
+    ${workspaces."9"} = mainMonitorPattern;
+    ${workspaces."10"} = mainMonitorPattern;
+    Cintiq = "^Wacom";
+  };
+
+  mkWorkspaceRule = appId: workspace: {
+    "if".app-id = appId;
+    run = [ "move-node-to-workspace ${workspaceArg workspace}" ];
+  };
+
+  windowCategories = {
+    browser = {
+      workspace = workspaces.browser;
+      appIds = [
+        "com.google.Chrome"
+      ];
+    };
+    terminal = {
+      workspace = workspaces.terminal;
+      appIds = [
+        "com.mitchellh.ghostty"
+        "com.apple.Terminal"
+        "com.googlecode.iterm2"
+        "net.kovidgoyal.kitty"
+      ];
+    };
+  };
+
+  mkCategoryRules = category:
+    builtins.map
+      (appId: mkWorkspaceRule appId category.workspace)
+      category.appIds;
+
+  windowRules = [
+    {
+      "if".app-id = "com.google.Chrome";
+      check-further-callbacks = true;
+      run = [
+        "layout floating"
+        "move-node-to-workspace ${workspaceArg windowCategories.browser.workspace}"
+      ];
+    }
+  ]
+  ++ mkCategoryRules windowCategories.terminal
+  ++ mkCategoryRules windowCategories.browser
+  ++ [
+    {
+      "if".app-id = "jp.co.celsys.CLIPSTUDIOPAINT";
+      run = [ "move-node-to-workspace Cintiq" ];
+    }
+  ];
+in
+
 {
   services.aerospace = {
     enable = true;
@@ -17,135 +167,22 @@
       ];
 
       gaps = {
-        inner = {
-          horizontal = 10;
-          vertical = 10;
-        };
         outer = {
-          top = 10;
-          bottom = 10;
-          left = 10;
-          right = 10;
+          top = 0;
+          bottom = 0;
+          left = 0;
+          right = 0;
         };
       };
 
       mode = {
-        main.binding = {
-          alt-h = "focus --boundaries-action wrap-around-the-workspace left";
-          alt-j = "focus --boundaries-action wrap-around-the-workspace down";
-          alt-k = "focus --boundaries-action wrap-around-the-workspace up";
-          alt-l = "focus --boundaries-action wrap-around-the-workspace right";
-
-          alt-shift-s = "exec-and-forget screencapture -i -c";
-          alt-shift-tab = "move-workspace-to-monitor --wrap-around next";
-          alt-tab = "workspace-back-and-forth";
-
-          alt-shift-h = "move left";
-          alt-shift-j = "move down";
-          alt-shift-k = "move up";
-          alt-shift-l = "move right";
-
-          alt-f = "fullscreen";
-          alt-slash = "layout tiles horizontal vertical";
-          alt-space = "layout floating tiling";
-
-          alt-1 = "workspace 1";
-          alt-2 = "workspace 2";
-          alt-3 = "workspace 3";
-          alt-4 = "workspace 4";
-          alt-5 = "workspace 5";
-          alt-6 = "workspace 6";
-          alt-7 = "workspace 7";
-          alt-8 = "workspace 8";
-          alt-9 = "workspace 9";
-          alt-0 = "workspace 10";
-
-          alt-r = "mode resize";
-          alt-m = "mode move";
-          cmd-h = [ ];
-          cmd-alt-h = [ ];
-        };
-
-        move.binding = {
-          alt-1 = [
-            "move-node-to-workspace 1"
-            "mode main"
-          ];
-          alt-2 = [
-            "move-node-to-workspace 2"
-            "mode main"
-          ];
-          alt-3 = [
-            "move-node-to-workspace 3"
-            "mode main"
-          ];
-          alt-4 = [
-            "move-node-to-workspace 4"
-            "mode main"
-          ];
-          alt-5 = [
-            "move-node-to-workspace 5"
-            "mode main"
-          ];
-          alt-6 = [
-            "move-node-to-workspace 6"
-            "mode main"
-          ];
-          alt-7 = [
-            "move-node-to-workspace 7"
-            "mode main"
-          ];
-          alt-8 = [
-            "move-node-to-workspace 8"
-            "mode main"
-          ];
-          alt-9 = [
-            "move-node-to-workspace 9"
-            "mode main"
-          ];
-          alt-0 = [
-            "move-node-to-workspace 10"
-            "mode main"
-          ];
-          enter = "mode main";
-          esc = "mode main";
-        };
-
-        resize.binding = {
-          h = "resize width -50";
-          j = "resize height +50";
-          k = "resize height -50";
-          l = "resize width +50";
-          enter = "mode main";
-          esc = "mode main";
-        };
+        main.binding = mainBinding;
+        move.binding = moveBinding;
+        resize.binding = resizeBinding;
       };
 
-      workspace-to-monitor-force-assignment = {
-        "1" = "main";
-        "2" = "main";
-        "3" = "main";
-        "4" = "main";
-        "5" = "main";
-        "6" = "built-in";
-        "7" = "built-in";
-        "8" = "built-in";
-        "9" = "built-in";
-        "10" = "built-in";
-        Cintiq = "^Wacom";
-        Media = "^Wacom";
-      };
-
-      on-window-detected = [
-        {
-          "if".app-id = "jp.co.celsys.CLIPSTUDIOPAINT";
-          run = [ "move-node-to-workspace Cintiq" ];
-        }
-        {
-          "if".window-title-regex-substring = "YouTube";
-          run = [ "move-node-to-workspace Media" ];
-        }
-      ];
+      workspace-to-monitor-force-assignment = workspaceAssignments;
+      on-window-detected = windowRules;
     };
   };
 }
