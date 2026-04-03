@@ -11,6 +11,7 @@
       url = "github:nix-darwin/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nix-homebrew.url = "github:zhaofengli/nix-homebrew";
   };
 
   outputs =
@@ -19,22 +20,27 @@
       nixpkgs,
       home-manager,
       nix-darwin,
+      nix-homebrew,
     }:
-
     let
-      system = "aarch64-darwin";
-      pkgs = nixpkgs.legacyPackages.${system};
+      username = "hume";
+      homeDirectory = "/Users/${username}";
     in
     {
-      homeConfigurations."hume" = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
+
+      darwinConfigurations."macOS" = nix-darwin.lib.darwinSystem {
+        specialArgs = {
+          inherit
+            self
+            username
+            homeDirectory
+            ;
+        }; # flakeのリビジョン情報と共通ユーザー設定を各モジュールから参照する
         modules = [
-          ./home-manager/home.nix
+          ./nix-darwin/configuration.nix
+          home-manager.darwinModules.home-manager
+          nix-homebrew.darwinModules.nix-homebrew
         ];
-      };
-      darwinConfigurations."HumeBook-Air" = nix-darwin.lib.darwinSystem {
-        specialArgs = { inherit self; }; # これがないとnix-darwinのモジュール内でhome-managerのモジュールを参照できない
-        modules = [ ./nix-darwin/configuration.nix ];
       };
     };
 }
