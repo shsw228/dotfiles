@@ -1,8 +1,8 @@
 [
+  "laishulu/homebrew"
   "arto-app/tap"
   "dzirtusss/tap"
   "felixkratz/formulae"
-  "getsentry/xcodebuildmcp"
   "kyome22/tap"
   "lihaoyun6/tap"
   "shsw228/tap"

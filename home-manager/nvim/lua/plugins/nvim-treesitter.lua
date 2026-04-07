@@ -1,7 +1,17 @@
 local M = {
     "nvim-treesitter/nvim-treesitter",
-    build = function()
-        require("nvim-treesitter.install").update({ with_sync = true })()
+    branch = "main",
+    ft = {
+        "markdown",
+        "markdown_inline",
+        "query",
+        "vimdoc",
+    },
+    build = ":TSUpdate",
+    config = function()
+        require("nvim-treesitter").setup({
+            install_dir = vim.fn.stdpath("data") .. "/site",
+        })
     end,
 }
 

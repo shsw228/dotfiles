@@ -4,8 +4,8 @@ let
   workspaces = {
     browser = "1.Chrome";
     terminal = "2.Terminal";
-    "3" = "3";
-    "4" = "4";
+    xcode = "3.Xcode";
+    ai = "4.AI";
     "5" = "5";
     "6" = "6";
     "7" = "7";
@@ -22,6 +22,12 @@ let
     "main"
   ];
   workspaceArg = workspace: "\"${workspace}\"";
+  borderWidth = "5.0";
+  tilingActiveColor = "0xffe1e3e4";
+  floatingActiveColor = "0xfff5a97f";
+  inactiveBorderColor = "0xff494d64";
+  updateBorderColorCommand =
+    ''exec-and-forget /bin/zsh -lc "layout=\$(aerospace list-windows --focused --format '%{window-layout}' 2>/dev/null); if [ \"\$layout\" = floating ]; then borders active_color=${floatingActiveColor} inactive_color=${inactiveBorderColor} width=${borderWidth}; else borders active_color=${tilingActiveColor} inactive_color=${inactiveBorderColor} width=${borderWidth}; fi"'';
 
   mainBinding = {
     alt-h = "focus --boundaries-action wrap-around-the-workspace left";
@@ -44,8 +50,8 @@ let
 
     alt-1 = "workspace ${workspaceArg workspaces.browser}";
     alt-2 = "workspace ${workspaceArg workspaces.terminal}";
-    alt-3 = "workspace ${workspaceArg workspaces."3"}";
-    alt-4 = "workspace ${workspaceArg workspaces."4"}";
+    alt-3 = "workspace ${workspaceArg workspaces.xcode}";
+    alt-4 = "workspace ${workspaceArg workspaces.ai}";
     alt-5 = "workspace ${workspaceArg workspaces."5"}";
     alt-6 = "workspace ${workspaceArg workspaces."6"}";
     alt-7 = "workspace ${workspaceArg workspaces."7"}";
@@ -67,8 +73,8 @@ let
   moveBinding = {
     alt-1 = moveToWorkspace workspaces.browser;
     alt-2 = moveToWorkspace workspaces.terminal;
-    alt-3 = moveToWorkspace workspaces."3";
-    alt-4 = moveToWorkspace workspaces."4";
+    alt-3 = moveToWorkspace workspaces.xcode;
+    alt-4 = moveToWorkspace workspaces.ai;
     alt-5 = moveToWorkspace workspaces."5";
     alt-6 = moveToWorkspace workspaces."6";
     alt-7 = moveToWorkspace workspaces."7";
@@ -91,8 +97,8 @@ let
   workspaceAssignments = {
     ${workspaces.browser} = mainMonitorPattern;
     ${workspaces.terminal} = mainMonitorPattern;
-    ${workspaces."3"} = mainMonitorPattern;
-    ${workspaces."4"} = mainMonitorPattern;
+    ${workspaces.xcode} = mainMonitorPattern;
+    ${workspaces.ai} = mainMonitorPattern;
     ${workspaces."5"} = subMonitorPattern;
     ${workspaces."6"} = mainMonitorPattern;
     ${workspaces."7"} = mainMonitorPattern;
@@ -119,7 +125,19 @@ let
       appIds = [
         "com.mitchellh.ghostty"
         "com.apple.Terminal"
-        "com.googlecode.iterm2"
+      ];
+    };
+    xcode = {
+      workspace = workspaces.xcode;
+      appIds = [
+        "com.apple.dt.Xcode"
+        "com.apple.iphonesimulator"
+      ];
+    };
+    ai = {
+      workspace = workspaces.ai;
+      appIds = [
+        "com.openai.codex"
       ];
     };
   };
@@ -141,7 +159,17 @@ let
   ]
   ++ mkCategoryRules windowCategories.terminal
   ++ mkCategoryRules windowCategories.browser
+  ++ mkCategoryRules windowCategories.xcode
+  ++ mkCategoryRules windowCategories.ai
   ++ [
+    {
+      "if".app-id = "com.apple.iphonesimulator";
+      check-further-callbacks = true;
+      run = [
+        "layout tiling"
+        "move-node-to-workspace ${workspaceArg windowCategories.xcode.workspace}"
+      ];
+    }
     {
       "if".app-id = "jp.co.celsys.CLIPSTUDIOPAINT";
       run = [ "move-node-to-workspace Cintiq" ];
@@ -160,17 +188,21 @@ in
       default-root-container-layout = "tiles";
       default-root-container-orientation = "horizontal";
       automatically-unhide-macos-hidden-apps = true;
-      on-focus-changed = [ "move-mouse window-lazy-center" ];
+      on-focus-changed = [
+        "move-mouse window-lazy-center"
+        updateBorderColorCommand
+      ];
       after-startup-command = [
-        "exec-and-forget borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0"
+        "exec-and-forget borders active_color=${tilingActiveColor} inactive_color=${inactiveBorderColor} width=${borderWidth}"
+        updateBorderColorCommand
       ];
 
       gaps = {
         outer = {
-          top = 0;
-          bottom = 0;
-          left = 0;
-          right = 0;
+          top = 5;
+          bottom = 5;
+          left = 5;
+          right = 5;
         };
       };
 

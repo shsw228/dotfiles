@@ -1,0 +1,34 @@
+theme = "Xcode Dark hc"
+background = #000000
+background-opacity = 0.7
+background-blur = 13
+unfocused-split-opacity = 0.6
+font-family = monaspace
+font-feature = -dlig
+font-size = 20
+font-style-bold = false
+font-style-italic = false
+
+font-thicken = true
+font-thicken-strength = 1
+initial-window = true
+macos-icon = blueprint
+macos-hidden = always
+macos-titlebar-style = hidden
+macos-non-native-fullscreen = true
+macos-window-shadow = false
+macos-window-buttons = hidden
+macos-shortcuts = ask
+alpha-blending = linear
+resize-overlay = never
+window-step-resize = true
+
+quick-terminal-size = 50%,50%
+quick-terminal-screen = "main"
+quick-terminal-position = "top"
+quick-terminal-animation-duration = 0.05
+quick-terminal-autohide = false
+keybind = "global:ctrl+shift+space=toggle_quick_terminal"
+keybind = "super+backspace=text:\x15"
+
+mouse-hide-while-typing = true

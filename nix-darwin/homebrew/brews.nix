@@ -1,10 +1,11 @@
 [
+  "asc"
   "hidapi"
   "libusb"
+  "laishulu/homebrew/macism"
   "winetricks"
   "felixkratz/formulae/borders"
   "felixkratz/formulae/sketchybar"
-  "getsentry/xcodebuildmcp/xcodebuildmcp"
   "kyome22/tap/luca"
   "yammerjp/tap/pdef"
 ]
