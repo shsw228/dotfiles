@@ -7,8 +7,10 @@
 
 {
   imports = [
+    ./ghostty.nix
     ./karabiner.nix
     ./nvim.nix
+    ./wezterm.nix
     ./zsh.nix
   ];
 
@@ -18,6 +20,7 @@
   home.homeDirectory = homeDirectory;
   home.stateVersion = "25.11"; # Please read the comment before changing.
   home.packages = with pkgs; [
+    # CLI tools
     aria2
     bat
     gh
@@ -25,12 +28,20 @@
     git
     gitflow
     gnumake
+    home-manager
     lazygit
     lua
-    neovim
     nixfmt
     nodejs
     pnpm
+    tree-sitter
+    xcodes
+
+    # Terminal/editor
+    _1password-cli
+    codex
+    github-copilot-cli
+    neovim
   ];
   home.file = {
     ".config/git/config".source = ./git/config;

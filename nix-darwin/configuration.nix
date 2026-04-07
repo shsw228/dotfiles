@@ -31,17 +31,14 @@
 
   nix.enable = false;
   environment.systemPackages = with pkgs; [
+    # GUI applications
     _1password-gui
-    _1password-cli
-    codex
     discord
     ghostty-bin
-    github-copilot-cli
     google-chrome
-    karabiner-elements
-    obsidian
     raycast
     vscode
+    wezterm
   ];
 
   programs.zsh.enable = true;
