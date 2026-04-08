@@ -4,7 +4,7 @@
   "altserver"
   "arto-app/tap/arto"
   "betterdisplay"
-  "clip-studio-paint"
+  "claude-code"
   "fork"
   "hammerspoon"
   "hazeover"
