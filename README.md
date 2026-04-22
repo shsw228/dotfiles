@@ -1,13 +1,12 @@
 # dotfiles
 
-This repository is managed with `chezmoi` for dotfiles and `nix-darwin` only for the remaining macOS-specific modules.
+This repository is managed with `chezmoi`.
 
 ## Current Direction
 
 - New setup work should go through [`chezmoi/`](./chezmoi)
 - `chezmoi/` is the source of truth for shell, editor, and user dotfiles
 - `chezmoi/Brewfile` is the only package inventory
-- `nix-darwin/` remains only for modules that are not yet worth moving
 - Secrets must stay out of Git
 
 ## Chezmoi Setup
@@ -48,13 +47,3 @@ brew upgrade codex
 ```
 
 If you prefer the npm distribution instead, remove `brew "codex"` from `chezmoi/Brewfile` and use `npm install -g @openai/codex`.
-
-## Legacy Nix Setup
-
-The flake-based setup still exists for the remaining `nix-darwin` modules:
-
-```sh
-darwin-rebuild switch --flake .#macOS
-```
-
-This no longer configures shell/editor dotfiles, Homebrew packages, macOS `defaults`, AeroSpace, Raycast, or NotchNook; those are handled by `chezmoi`.
