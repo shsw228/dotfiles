@@ -1,0 +1,47 @@
+#!/bin/sh
+set -eu
+
+if ! command -v op >/dev/null 2>&1; then
+  exit 0
+fi
+
+op_config_dir="$HOME/.config/1password"
+op_service_account_token_file="$op_config_dir/service-account-token"
+op_service_account_token_ref="op://Personal/7fc73377vwkiokkzs643wjjpwu/service_account_token"
+notch_nook_license_item_id="2wlfl2luotpvi6qnjeovnfm6ra"
+
+service_account_token=""
+
+if [ -r "$op_service_account_token_file" ]; then
+  service_account_token="$(/usr/bin/head -n 1 "$op_service_account_token_file" 2>/dev/null || true)"
+fi
+
+if [ -z "$service_account_token" ]; then
+  bootstrap_token="$(op read "$op_service_account_token_ref" 2>/dev/null || true)"
+
+  if [ -n "$bootstrap_token" ]; then
+    mkdir -p "$op_config_dir"
+    umask 077
+    printf %s "$bootstrap_token" >"$op_service_account_token_file"
+    service_account_token="$bootstrap_token"
+  fi
+fi
+
+if [ -z "$service_account_token" ]; then
+  exit 0
+fi
+
+notch_nook_email="$(OP_SERVICE_ACCOUNT_TOKEN="$service_account_token" op read "op://Private/${notch_nook_license_item_id}/reg_email" 2>/dev/null || true)"
+notch_nook_key="$(OP_SERVICE_ACCOUNT_TOKEN="$service_account_token" op read "op://Private/${notch_nook_license_item_id}/reg_code" 2>/dev/null || true)"
+
+if [ -z "$notch_nook_email" ] || [ -z "$notch_nook_key" ]; then
+  exit 0
+fi
+
+notch_nook_key_active="$(
+  NOTCHNOOK_EMAIL="$notch_nook_email" NOTCHNOOK_KEY="$notch_nook_key" \
+    /usr/bin/python3 -c 'import json, os; print(json.dumps({"email": os.environ["NOTCHNOOK_EMAIL"], "key": os.environ["NOTCHNOOK_KEY"]}))' \
+    2>/dev/null
+)" || exit 0
+
+/usr/bin/defaults write lo.cafe.NotchNook keyActive -string "$notch_nook_key_active"

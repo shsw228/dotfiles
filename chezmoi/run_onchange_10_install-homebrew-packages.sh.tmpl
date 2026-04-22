@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+
+if ! command -v brew >/dev/null 2>&1; then
+  echo "Homebrew is not installed. Install Homebrew first:" >&2
+  echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"" >&2
+  exit 1
+fi
+
+tmp_brewfile="$(mktemp)"
+trap 'rm -f "$tmp_brewfile"' EXIT
+
+cat >"$tmp_brewfile" <<'EOF_BREWFILE'
+{{ include "Brewfile" }}
+EOF_BREWFILE
+
+brew bundle --file="$tmp_brewfile"
