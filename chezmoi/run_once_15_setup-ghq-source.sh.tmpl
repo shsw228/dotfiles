@@ -1,0 +1,33 @@
+#!/bin/sh
+# ghq配下にdotfilesをクローンし、chezmoiのsourceDirを切り替える
+set -eu
+
+# CI環境ではスキップ
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+if ! command -v ghq >/dev/null 2>&1; then
+  echo "ghq が見つかりません。sourceDir の切り替えをスキップします" >&2
+  exit 0
+fi
+
+ghq get -u shsw228/dotfiles
+
+ghq_source="$(ghq root)/github.com/shsw228/dotfiles"
+
+if [ ! -d "$ghq_source" ]; then
+  echo "ghq get 後にディレクトリが見つかりません: $ghq_source" >&2
+  exit 1
+fi
+
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi/chezmoi.toml"
+
+if [ -f "$config_file" ] && ! grep -q '^sourceDir' "$config_file"; then
+  tmp="$(mktemp)"
+  trap 'rm -f "$tmp"' EXIT
+  printf 'sourceDir = "%s"\n' "$ghq_source" | cat - "$config_file" > "$tmp"
+  mv "$tmp" "$config_file"
+  echo "chezmoi sourceDir を $ghq_source に切り替えました"
+  echo "不要になった ~/.local/share/chezmoi は手動で削除できます"
+fi
