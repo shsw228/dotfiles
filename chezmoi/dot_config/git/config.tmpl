@@ -11,6 +11,12 @@
 [includeIf "gitdir:~/Developer/ghq/global/github.com/shsw228/"]
 	path = ~/.config/git/config-shsw228
 
+{{- if not (dig "profile" "is_personal_pc" false .) }}
+
+[core]
+	sshCommand = ssh -o IdentityAgent=~/.1password-agent.sock -o IdentitiesOnly=yes -o IdentityFile=~/.ssh/github_work.pub
+{{- end }}
+
 [ghq]
 	root = ~/Developer/ghq/global
 
