@@ -24,7 +24,7 @@ jobs:
       - name: Render personal profile config
         run: |
           chezmoi execute-template \
-            --source "$GITHUB_WORKSPACE/chezmoi" \
+            --source "$GITHUB_WORKSPACE" \
             --init \
             --override-data '{"is_personal_pc":true}' \
             --file "$GITHUB_WORKSPACE/chezmoi/.chezmoi.toml.tmpl" \
@@ -33,7 +33,7 @@ jobs:
       - name: Validate gitconfig template render
         run: |
           chezmoi execute-template \
-            --source "$GITHUB_WORKSPACE/chezmoi" \
+            --source "$GITHUB_WORKSPACE" \
             --config "$RUNNER_TEMP/chezmoi.toml" \
             --config-format toml \
             < "$GITHUB_WORKSPACE/chezmoi/dot_gitconfig.tmpl" \
@@ -43,7 +43,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/home"
           chezmoi apply \
-            --source "$GITHUB_WORKSPACE/chezmoi" \
+            --source "$GITHUB_WORKSPACE" \
             --config "$RUNNER_TEMP/chezmoi.toml" \
             --config-format toml \
             --destination "$RUNNER_TEMP/home" \
