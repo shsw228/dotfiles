@@ -14,4 +14,10 @@ cat >"$tmp_brewfile" <<'EOF_BREWFILE'
 {{ include "Brewfile" }}
 EOF_BREWFILE
 
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  awk '$0 != "cask \"kicad\""' "$tmp_brewfile" > "${tmp_brewfile}.filtered"
+  mv "${tmp_brewfile}.filtered" "$tmp_brewfile"
+  echo "Skipping kicad cask installation in CI mode (CHEZMOI_CI=1)."
+fi
+
 brew bundle --file="$tmp_brewfile"
