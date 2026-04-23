@@ -9,13 +9,13 @@ This repository is managed with `chezmoi`.
 1. Install and apply chezmoi with the official bootstrap
 
 ```sh
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply shsw228 --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles/chezmoi"
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply shsw228
 ```
 
 2. If chezmoi is already installed, you can apply the same source directly
 
 ```sh
-chezmoi init --apply --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles/chezmoi"
+chezmoi init --apply shsw228
 ```
 
 At `chezmoi init`, you will be asked whether this is a personal PC. If you answer `yes`, Git user settings are filled with personal defaults. If you answer `no`, you can choose interactive input for work `user.name` / `user.email`; declining this exits with an error.
