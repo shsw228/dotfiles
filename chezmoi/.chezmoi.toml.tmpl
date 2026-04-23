@@ -1,7 +1,15 @@
 {{- /* ghq が利用可能なら sourceDir を ghq 配下に固定する */ -}}
-{{- if and (not (env "CHEZMOI_CI")) (lookPath "ghq") }}
-sourceDir = "{{ output "ghq" "root" | trim }}/github.com/shsw228/dotfiles"
-{{ end -}}
+{{- /* 初回は git config 未展開で ghq root がデフォルト値を返すため、 */ -}}
+{{- /* GHQ_ROOT 環境変数があればそちらを優先する */ -}}
+{{- if not (env "CHEZMOI_CI") -}}
+{{-   $ghqRoot := env "GHQ_ROOT" -}}
+{{-   if and (eq $ghqRoot "") (lookPath "ghq") -}}
+{{-     $ghqRoot = output "ghq" "root" | trim -}}
+{{-   end -}}
+{{-   if ne $ghqRoot "" }}
+sourceDir = "{{ $ghqRoot }}/github.com/shsw228/dotfiles"
+{{   end -}}
+{{- end -}}
 
 {{- $isPersonalPC := false -}}
 {{- if hasKey . "is_personal_pc" -}}

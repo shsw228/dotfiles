@@ -12,9 +12,18 @@ if ! command -v ghq >/dev/null 2>&1; then
   exit 0
 fi
 
-ghq get -u shsw228/dotfiles
+# スクリプト実行時点では ~/.config/git/config が未展開で
+# ghq root がデフォルト(~/ghq)を返す場合がある。
+# 環境変数で正しい root を明示する。
+export GHQ_ROOT="${HOME}/Developer/ghq/global"
 
-ghq_source="$(ghq root)/github.com/shsw228/dotfiles"
+ghq_source="${GHQ_ROOT}/github.com/shsw228/dotfiles"
+
+if [ -d "$ghq_source/.git" ]; then
+  echo "dotfiles は既にクローン済み: $ghq_source"
+else
+  ghq get -u shsw228/dotfiles
+fi
 
 if [ ! -d "$ghq_source" ]; then
   echo "ghq get 後にディレクトリが見つかりません: $ghq_source" >&2
