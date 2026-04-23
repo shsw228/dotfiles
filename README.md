@@ -46,7 +46,7 @@ The normal source path is `~/.local/share/chezmoi`. If `chezmoi diff` looks wron
 - configure login items for Raycast and AeroSpace
 - bootstrap the NotchNook license from 1Password when available
 - place shell entrypoints such as `.zshenv`, `.zprofile`, and `.zshrc`, with their main contents under `~/.config/zsh/`
-- place app config such as `~/.config/git/config`, `~/.config/nvim`, `~/.config/wezterm`, `~/.config/ghostty`, and `~/.aerospace.toml`
+- place app config such as `~/.config/git/config`, `~/.config/nvim`, `~/.config/wezterm`, `~/.config/ghostty`, and `~/.config/aerospace/aerospace.toml`
 
 For NotchNook, sign in to 1Password first, then run `chezmoi apply` again if the license has not been injected yet.
 
