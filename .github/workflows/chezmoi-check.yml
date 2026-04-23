@@ -1,0 +1,59 @@
+name: chezmoi-check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      CHEZMOI_CI: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install chezmoi
+        run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+
+      - name: Add chezmoi to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Render personal profile config
+        run: |
+          chezmoi execute-template \
+            --source "$GITHUB_WORKSPACE/chezmoi" \
+            --init \
+            --override-data '{"is_personal_pc":true}' \
+            --file "$GITHUB_WORKSPACE/chezmoi/.chezmoi.toml.tmpl" \
+            > "$RUNNER_TEMP/chezmoi.toml"
+
+      - name: Validate gitconfig template render
+        run: |
+          chezmoi execute-template \
+            --source "$GITHUB_WORKSPACE/chezmoi" \
+            --config "$RUNNER_TEMP/chezmoi.toml" \
+            --config-format toml \
+            < "$GITHUB_WORKSPACE/chezmoi/dot_gitconfig.tmpl" \
+            > /dev/null
+
+      - name: Validate chezmoi apply dry-run (personal profile)
+        run: |
+          mkdir -p "$RUNNER_TEMP/home"
+          chezmoi apply \
+            --source "$GITHUB_WORKSPACE/chezmoi" \
+            --config "$RUNNER_TEMP/chezmoi.toml" \
+            --config-format toml \
+            --destination "$RUNNER_TEMP/home" \
+            --dry-run \
+            --no-tty
+
+      - name: Shell syntax checks
+        run: |
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_00_install-homebrew.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_10_install-homebrew-packages.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_40_configure-notchnook-license.sh.tmpl"

@@ -1,0 +1,12 @@
+{{- $name := dig "git" "name" "" . -}}
+{{- $email := dig "git" "email" "" . -}}
+{{- if or (eq $name "") (eq $email "") -}}
+{{- fail "gitのname/emailが未設定です。`chezmoi init` で質問に回答するか、~/.config/chezmoi/chezmoi.toml に [data.git] を設定してください。" -}}
+{{- end -}}
+
+[user]
+	name = {{ $name | quote }}
+	email = {{ $email | quote }}
+
+[ghq]
+	root = ~/Developer/ghq
