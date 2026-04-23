@@ -13,7 +13,7 @@ jobs:
       CHEZMOI_CI: "1"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install chezmoi
         run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
