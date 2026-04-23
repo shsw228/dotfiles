@@ -50,6 +50,13 @@ The normal source path is `~/.local/share/chezmoi`. If `chezmoi diff` looks wron
 
 For NotchNook, sign in to 1Password first, then run `chezmoi apply` again if the license has not been injected yet.
 
+## Local-Only Configuration
+
+The following files are loaded if present but not managed by chezmoi, so `chezmoi apply` will not overwrite them. Useful for machine-specific settings you don't want in a public repository.
+
+- `~/.config/zsh/local.zsh` — sourced at the end of `.zshrc`
+- `~/.config/git/config.local` — included via `[include]` at the end of git config
+
 ## Daily Use
 
 ```sh

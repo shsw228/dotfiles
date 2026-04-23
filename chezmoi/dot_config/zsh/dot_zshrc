@@ -104,3 +104,5 @@ esac
 if [ -f "$HOME/.local/bin/env" ]; then
   . "$HOME/.local/bin/env"
 fi
+
+[[ -f ~/.config/zsh/local.zsh ]] && source ~/.config/zsh/local.zsh
