@@ -1,5 +1,7 @@
 # dotfiles
 
+[![chezmoi-check](https://github.com/shsw228/dotfiles/actions/workflows/chezmoi-check.yml/badge.svg)](https://github.com/shsw228/dotfiles/actions/workflows/chezmoi-check.yml)
+
 This repository is managed with `chezmoi`.
 
 ## Chezmoi Setup
