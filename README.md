@@ -18,6 +18,8 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply shsw228 --source="$HOME/Dev
 chezmoi init --apply --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles/chezmoi"
 ```
 
+At `chezmoi init`, you will be asked whether this is a personal PC. If you answer `yes`, Git user settings are filled with personal defaults. If you answer `no`, you can choose interactive input for work `user.name` / `user.email`; declining this exits with an error.
+
 3. Confirm the installed `chezmoi` is looking at the expected source
 
 ```sh
