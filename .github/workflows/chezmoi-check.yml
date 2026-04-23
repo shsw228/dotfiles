@@ -36,7 +36,7 @@ jobs:
             --source "$GITHUB_WORKSPACE" \
             --config "$RUNNER_TEMP/chezmoi.toml" \
             --config-format toml \
-            < "$GITHUB_WORKSPACE/chezmoi/dot_gitconfig.tmpl" \
+            < "$GITHUB_WORKSPACE/chezmoi/dot_config/git/config.tmpl" \
             > /dev/null
 
       - name: Validate chezmoi apply dry-run (personal profile)
