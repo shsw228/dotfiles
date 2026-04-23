@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+
+defaults write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticDashSubstitutionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false
+defaults write NSGlobalDomain AppleInterfaceStyle -string Dark
+defaults write NSGlobalDomain NSWindowResizeTime -float 0.001
+
+defaults write com.apple.finder AppleShowAllExtensions -bool true
+defaults write com.apple.finder AppleShowAllFiles -bool true
+defaults write com.apple.finder FXDefaultSearchScope -string SCcf
+defaults write com.apple.finder ShowPathbar -bool true
+defaults write com.apple.finder FXPreferredViewStyle -string Nlsv
+defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false
+
+defaults write com.apple.dock autohide -bool true
+defaults write com.apple.dock expose-group-apps -bool true
+defaults write com.apple.dock show-process-indicators -bool true
+defaults write com.apple.dock show-recents -bool false
+defaults write com.apple.dock launchanim -bool false
+defaults write com.apple.dock mineffect -string scale
+defaults write com.apple.dock mru-spaces -bool false
+defaults write com.apple.dock orientation -string bottom
+defaults write com.apple.dock tilesize -int 35
+defaults write com.apple.dock persistent-apps -array
+defaults write com.apple.dock wvous-br-corner -int 0
+defaults write com.apple.dock wvous-br-modifier -int 0
+
+defaults write com.apple.spaces spans-displays -bool false
+
+defaults write com.apple.screencapture target -string clipboard
+defaults write com.apple.screencapture disable-shadow -bool true
+
+killall Dock >/dev/null 2>&1 || true
+killall Finder >/dev/null 2>&1 || true
+killall SystemUIServer >/dev/null 2>&1 || true

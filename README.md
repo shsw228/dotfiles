@@ -1,51 +1,56 @@
 # dotfiles
 
-## Setup
+[![chezmoi-check](https://github.com/shsw228/dotfiles/actions/workflows/chezmoi-check.yml/badge.svg)](https://github.com/shsw228/dotfiles/actions/workflows/chezmoi-check.yml)
 
-On a new macOS machine, install Nix first and then apply `nix-darwin`.
+This repository is managed with `chezmoi`.
 
-1. Install Nix in multi-user mode
+## Chezmoi Setup
 
-Official installer:
-
-```sh
-sh <(curl -L https://nixos.org/nix/install) --daemon
-```
-
-The official Nix manual recommends the multi-user installation on macOS.
-
-Alternative:
-
-- Install Determinate Nix if you prefer their installer flow
-
-2. Clone this repository
-3. Run the initial activation
+1. Install and apply chezmoi with the official bootstrap
 
 ```sh
-darwin-rebuild switch --flake .#macOS
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply shsw228 --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles/chezmoi"
 ```
 
-## 1Password Bootstrap
+2. If chezmoi is already installed, you can apply the same source directly
 
-`1password` and `1password-cli` are installed through the Homebrew section managed by `nix-darwin`.
+```sh
+chezmoi init --apply --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles/chezmoi"
+```
 
-On a new machine, the intended flow is:
+At `chezmoi init`, you will be asked whether this is a personal PC. If you answer `yes`, Git user settings are filled with personal defaults. If you answer `no`, you can choose interactive input for work `user.name` / `user.email`; declining this exits with an error.
 
-1. Run `darwin-rebuild switch --flake .#macOS`
-2. Sign in to the 1Password GUI
-3. Create a `Machine Bootstrap` item in the `Personal` vault
-4. Store the service account token in the `service_account_token` field
-5. Put `NotchNook License` in the `machine-secrets` vault
-6. Run `darwin-rebuild switch --flake .#macOS` again
+3. Confirm the installed `chezmoi` is looking at the expected source
 
-During the second activation, the activation script will:
+```sh
+chezmoi source-path
+chezmoi status
+```
 
-- read the service account token from `Personal/Machine Bootstrap`
-- create `~/.config/1password/service-account-token`
-- read `machine-secrets/NotchNook License` through the service account
-- re-inject `keyActive` into `NotchNook`
+The normal source path is `~/.local/share/chezmoi`. If `chezmoi diff` looks wrong, compare that directory with this repository's [`chezmoi/`](./chezmoi) before assuming your home directory drifted.
 
-## Notes
+`chezmoi apply` will then:
 
-- `nix-darwin/configuration.nix` sets `nix.enable = false;`, so Nix itself must be installed by an external installer
-- Do not store secrets in this repository
+- install Homebrew itself if `brew` is not present yet
+- install packages from [`chezmoi/Brewfile`](./chezmoi/Brewfile)
+- apply macOS preferences from `run_onchange_20_apply-macos-defaults.sh.tmpl`
+- configure login items for Raycast and AeroSpace
+- bootstrap the NotchNook license from 1Password when available
+- place dotfiles such as `.zshrc`, `~/.gitconfig`, `~/.config/nvim`, `~/.config/wezterm`, and `~/.config/ghostty`
+- place app config such as `~/.aerospace.toml`
+
+For NotchNook, sign in to 1Password first, then run `chezmoi apply` again if the license has not been injected yet.
+
+## Daily Use
+
+```sh
+chezmoi status
+chezmoi diff
+chezmoi apply
+```
+
+For package-only changes, you can also run:
+
+```sh
+brew bundle --file=chezmoi/Brewfile
+```
