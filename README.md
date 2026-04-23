@@ -18,7 +18,16 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply shsw228
 chezmoi init --apply shsw228
 ```
 
-At `chezmoi init`, you will be asked whether this is a personal PC. If you answer `yes`, Git user settings are filled with personal defaults. If you answer `no`, you can choose interactive input for work `user.name` / `user.email`; declining this exits with an error.
+At `chezmoi init`, you will be asked whether this is a personal PC. If you answer `yes`, Git user settings are filled with personal defaults. If you answer `no`, `user.name` / `user.email` are requested interactively unless `GIT_NAME` / `GIT_EMAIL` are already set. In some environments, `chezmoi init` may not get a usable TTY for prompts, so explicit environment variables are the most reliable option for work machines.
+
+For work machines, this non-interactive form is the most reliable:
+
+```sh
+CHEZMOI_IS_PERSONAL_PC=false \
+GIT_NAME="Your Name" \
+GIT_EMAIL="you@company.com" \
+chezmoi init --apply shsw228
+```
 
 3. Confirm the installed `chezmoi` is looking at the expected source
 
