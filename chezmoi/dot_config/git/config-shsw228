@@ -3,4 +3,4 @@
 	email = "13506491+shsw228@users.noreply.github.com"
 
 [core]
-	sshCommand = ssh -o "IdentityAgent=~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+	sshCommand = ssh -o IdentityAgent=~/.1password-agent.sock
