@@ -1,0 +1,17 @@
+{{- $isPersonalPC := promptBoolOnce . "is_personal_pc" "このPCは個人用ですか？" true -}}
+[data.profile]
+is_personal_pc = {{ $isPersonalPC }}
+
+{{- if $isPersonalPC }}
+[data.git]
+name = "hume"
+email = "13506491+shsw228@users.noreply.github.com"
+{{- else }}
+{{- $configureWorkGit := promptBoolOnce . "configure_work_git" "会社用のgit user.name / user.emailを対話的に設定しますか？（Noならエラー終了）" false -}}
+{{- if not $configureWorkGit -}}
+{{- fail "個人用PCではないため、git user.name/user.email の設定が必要です。対話設定を有効にして再実行してください。" -}}
+{{- end }}
+[data.git]
+name = {{ promptStringOnce . "git_name" "会社用のgit user.nameを入力してください" "" | quote }}
+email = {{ promptStringOnce . "git_email" "会社用のgit user.emailを入力してください" "" | quote }}
+{{- end }}
