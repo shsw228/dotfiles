@@ -1,0 +1,8 @@
+[[ssh-keys]]
+item = "SSH Key"
+{{- if not (dig "profile" "is_personal_pc" false .) }}
+
+[[ssh-keys]]
+item = "Work"
+vault = "works"
+{{- end }}
