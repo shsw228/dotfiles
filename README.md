@@ -2,41 +2,48 @@
 
 [![chezmoi-check](https://github.com/shsw228/dotfiles/actions/workflows/chezmoi-check.yml/badge.svg)](https://github.com/shsw228/dotfiles/actions/workflows/chezmoi-check.yml)
 
-This repository is managed with `chezmoi`.
+macOS dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 
-## Chezmoi Setup
+## Fresh Machine Setup
 
-1. Install and apply chezmoi with the official bootstrap
+### 1. Prepare 1Password and SSH
 
-```sh
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply shsw228
-```
-
-2. If chezmoi is already installed, you can apply the same source directly
+1. Install [1Password](https://apps.apple.com/app/1password-7-password-manager/id1333542190)
+2. Enable **SSH Agent** and **CLI** in 1Password Settings → Developer
+3. Run the bootstrap script to pull SSH config and public key from 1Password
 
 ```sh
-chezmoi init --apply shsw228
+curl -fsSL https://raw.githubusercontent.com/shsw228/dotfiles/main/setup-ssh.sh | sh
 ```
 
-At `chezmoi init`, you will be asked whether this is a personal PC. If you answer `yes`, Git user settings are filled with personal defaults. If you answer `no`, `user.name` / `user.email` are requested interactively unless `GIT_NAME` / `GIT_EMAIL` are already set. In some environments, `chezmoi init` may not get a usable TTY for prompts, so explicit environment variables are the most reliable option for work machines.
+This places `~/.ssh/config` and `~/.ssh/github_personal.pub` from the 1Password item.
 
-For work machines, this non-interactive form is the most reliable:
+### 2. Bootstrap with chezmoi
+
+```sh
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply git@github.com:shsw228/dotfiles.git
+```
+
+During `chezmoi init`, you will be asked whether this is a personal PC.
+
+- **Personal PC** → `yes` (Git identity is filled automatically)
+- **Work PC** → `no` (`user.name` / `user.email` prompted interactively)
+
+Non-interactive form for work machines:
 
 ```sh
 CHEZMOI_IS_PERSONAL_PC=false \
 GIT_NAME="Your Name" \
 GIT_EMAIL="you@company.com" \
-chezmoi init --apply shsw228
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply git@github.com:shsw228/dotfiles.git
 ```
 
-3. Confirm the installed `chezmoi` is looking at the expected source
+### 3. Verify
 
 ```sh
 chezmoi source-path
 chezmoi status
 ```
-
-The normal source path is `~/.local/share/chezmoi`. If `chezmoi diff` looks wrong, compare that directory with this repository's [`chezmoi/`](./chezmoi) before assuming your home directory drifted.
 
 `chezmoi apply` will then:
 
@@ -47,6 +54,11 @@ The normal source path is `~/.local/share/chezmoi`. If `chezmoi diff` looks wron
 - bootstrap the NotchNook license from 1Password when available
 - place shell entrypoints such as `.zshenv`, `.zprofile`, and `.zshrc`, with their main contents under `~/.config/zsh/`
 - place app config such as `~/.config/git/config`, `~/.config/nvim`, `~/.config/wezterm`, `~/.config/ghostty`, and `~/.config/aerospace/aerospace.toml`
+- create `~/.1password-agent.sock` symlink (avoids space-in-path issue with the 1Password socket)
+- on work PCs, set `core.sshCommand` to use the work key (`~/.ssh/github_work.pub`)
+- switch to personal account via `includeIf` for repos under `shsw228/`
+
+On work PCs, `~/.ssh/github_work.pub` must also be placed beforehand.
 
 For NotchNook, sign in to 1Password first, then run `chezmoi apply` again if the license has not been injected yet.
 
