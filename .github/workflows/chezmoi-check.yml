@@ -8,15 +8,28 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     env:
       CHEZMOI_CI: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Cache chezmoi
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/bin/chezmoi
+            ~/.cache/chezmoi
+          key: ${{ runner.os }}-chezmoi-${{ hashFiles('.github/workflows/chezmoi-check.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-chezmoi-
+
       - name: Install chezmoi
-        run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+        run: |
+          if [ ! -x "$HOME/.local/bin/chezmoi" ]; then
+            sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+          fi
 
       - name: Add chezmoi to PATH
         run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -47,8 +60,46 @@ jobs:
             --config "$RUNNER_TEMP/chezmoi.toml" \
             --config-format toml \
             --destination "$RUNNER_TEMP/home" \
+            --exclude scripts \
             --dry-run \
             --no-tty
+
+      - name: Validate expected chezmoi targets
+        run: |
+          managed="$(chezmoi managed --source "$GITHUB_WORKSPACE")"
+          while IFS= read -r target; do
+            printf '%s\n' "$managed" | grep -Fx "$target" >/dev/null
+          done <<'EOF_TARGETS'
+          .config/git/config
+          .config/sheldon/plugins.toml
+          .config/zsh/.zprofile
+          .config/zsh/.zshenv
+          .config/zsh/.zshrc
+          .zprofile
+          .zshenv
+          .zshrc
+          EOF_TARGETS
+
+      - name: Validate expected files are applied
+        run: |
+          home="$RUNNER_TEMP/home-apply"
+          mkdir -p "$home"
+          chezmoi apply \
+            --source "$GITHUB_WORKSPACE" \
+            --config "$RUNNER_TEMP/chezmoi.toml" \
+            --config-format toml \
+            --destination "$home" \
+            --exclude scripts \
+            --no-tty
+
+          test -f "$home/.config/git/config"
+          test -f "$home/.config/sheldon/plugins.toml"
+          test -f "$home/.config/zsh/.zprofile"
+          test -f "$home/.config/zsh/.zshenv"
+          test -f "$home/.config/zsh/.zshrc"
+          test -f "$home/.zprofile"
+          test -f "$home/.zshenv"
+          test -f "$home/.zshrc"
 
       - name: Shell syntax checks
         run: |
@@ -57,3 +108,9 @@ jobs:
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_40_configure-notchnook-license.sh.tmpl"
+          zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zprofile"
+          zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshenv"
+          zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshrc"
+          zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_config/zsh/dot_zprofile"
+          zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_config/zsh/dot_zshenv"
+          zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_config/zsh/dot_zshrc"
