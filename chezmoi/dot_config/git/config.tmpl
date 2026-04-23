@@ -8,5 +8,8 @@
 	name = {{ $name | quote }}
 	email = {{ $email | quote }}
 
+[includeIf "gitdir:~/Developer/ghq/global/github.com/shsw228/"]
+	path = ~/.config/git/config-shsw228
+
 [ghq]
 	root = ~/Developer/ghq/global
