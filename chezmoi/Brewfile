@@ -39,7 +39,7 @@ brew "yammerjp/tap/pdef"
 
 cask "1password"
 cask "1password-cli"
-cask "airbattery"
+cask "lihaoyun6/tap/airbattery"
 cask "alt-tab"
 cask "altserver"
 cask "nikitabobko/tap/aerospace"
