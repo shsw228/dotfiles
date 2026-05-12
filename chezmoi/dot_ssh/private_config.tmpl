@@ -1,0 +1,24 @@
+{{- $isPersonal := dig "profile" "is_personal_pc" false . -}}
+Host *
+    IdentityAgent ~/.1password-agent.sock
+
+Host github.com-personal
+    HostName github.com
+    User git
+    IdentitiesOnly yes
+    IdentityFile ~/.ssh/github_personal.pub
+
+Host github.com-work
+    HostName github.com
+    User git
+    IdentitiesOnly yes
+    IdentityFile ~/.ssh/github_work.pub
+
+Host github.com
+    User git
+    IdentitiesOnly yes
+{{- if $isPersonal }}
+    IdentityFile ~/.ssh/github_personal.pub
+{{- else }}
+    IdentityFile ~/.ssh/github_work.pub
+{{- end }}

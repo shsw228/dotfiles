@@ -14,10 +14,6 @@ fi
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 
-op read "${OP_PERSONAL}/ssh_config" > ~/.ssh/config
-chmod 600 ~/.ssh/config
-echo "~/.ssh/config を配置しました"
-
 op read "${OP_PERSONAL}/public key" > ~/.ssh/github_personal.pub
 chmod 644 ~/.ssh/github_personal.pub
 echo "~/.ssh/github_personal.pub を配置しました"
@@ -25,6 +21,19 @@ echo "~/.ssh/github_personal.pub を配置しました"
 op read "${OP_WORK}/public_key" > ~/.ssh/github_work.pub
 chmod 644 ~/.ssh/github_work.pub
 echo "~/.ssh/github_work.pub を配置しました"
+
+# chezmoi clone を通すための bootstrap 用最小 ssh config
+# chezmoi apply 後はテンプレ管理の ~/.ssh/config に上書きされる
+# (~/.1password-agent.sock の symlink もまだ無いので 1Password 直のパスを指す)
+cat > ~/.ssh/config <<EOF
+Host github.com
+    User git
+    IdentityAgent "${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+    IdentitiesOnly yes
+    IdentityFile ~/.ssh/github_personal.pub
+EOF
+chmod 600 ~/.ssh/config
+echo "~/.ssh/config (bootstrap) を配置しました"
 
 echo ""
 echo "確認:"
