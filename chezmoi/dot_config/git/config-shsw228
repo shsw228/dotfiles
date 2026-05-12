@@ -2,5 +2,7 @@
 	name = "hume"
 	email = "13506491+shsw228@users.noreply.github.com"
 
-[core]
-	sshCommand = ssh -o IdentityAgent=~/.1password-agent.sock -o IdentitiesOnly=yes -o IdentityFile=~/.ssh/github_personal.pub
+[url "git@github.com-personal:"]
+	insteadOf = git@github.com:
+[url "ssh://git@github.com-personal/"]
+	insteadOf = ssh://git@github.com/
