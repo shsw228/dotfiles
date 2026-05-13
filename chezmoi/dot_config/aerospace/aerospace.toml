@@ -33,7 +33,7 @@ alt-shift-l = "move right"
 alt-f = "fullscreen"
 alt-slash = "layout tiles horizontal vertical"
 alt-space = "layout floating tiling"
-alt-1 = 'workspace "1.Chrome"'
+alt-1 = 'workspace "1.Browser"'
 alt-2 = 'workspace "2.Terminal"'
 alt-3 = 'workspace "3.Xcode"'
 alt-4 = 'workspace "4.AI"'
@@ -49,16 +49,16 @@ cmd-h = []
 cmd-alt-h = []
 
 [mode.move.binding]
-alt-1 = ['move-node-to-workspace "1.Chrome"', "mode main"]
-alt-2 = ['move-node-to-workspace "2.Terminal"', "mode main"]
-alt-3 = ['move-node-to-workspace "3.Xcode"', "mode main"]
-alt-4 = ['move-node-to-workspace "4.AI"', "mode main"]
-alt-5 = ['move-node-to-workspace "5"', "mode main"]
-alt-6 = ['move-node-to-workspace "6"', "mode main"]
-alt-7 = ['move-node-to-workspace "7"', "mode main"]
-alt-8 = ['move-node-to-workspace "8"', "mode main"]
-alt-9 = ['move-node-to-workspace "9"', "mode main"]
-alt-0 = ['move-node-to-workspace "10"', "mode main"]
+1 = ['move-node-to-workspace "1.Browser"', "mode main"]
+2 = ['move-node-to-workspace "2.Terminal"', "mode main"]
+3 = ['move-node-to-workspace "3.Xcode"', "mode main"]
+4 = ['move-node-to-workspace "4.AI"', "mode main"]
+5 = ['move-node-to-workspace "5"', "mode main"]
+6 = ['move-node-to-workspace "6"', "mode main"]
+7 = ['move-node-to-workspace "7"', "mode main"]
+8 = ['move-node-to-workspace "8"', "mode main"]
+9 = ['move-node-to-workspace "9"', "mode main"]
+0 = ['move-node-to-workspace "10"', "mode main"]
 enter = "mode main"
 esc = "mode main"
 
@@ -71,7 +71,7 @@ enter = "mode main"
 esc = "mode main"
 
 [workspace-to-monitor-force-assignment]
-"1.Chrome" = ["^DELL U4025QW$", "main"]
+"1.Browser" = ["^DELL U4025QW$", "main"]
 "2.Terminal" = ["^DELL U4025QW$", "main"]
 "3.Xcode" = ["^DELL U4025QW$", "main"]
 "4.AI" = ["^DELL U4025QW$", "main"]
@@ -85,11 +85,11 @@ Cintiq = "^Wacom"
 
 [[on-window-detected]]
 if.app-id = "com.google.Chrome"
-check-further-callbacks = true
-run = [
-  "layout floating",
-  'move-node-to-workspace "1.Chrome"',
-]
+run = ["layout floating", 'move-node-to-workspace "1.Browser"']
+
+[[on-window-detected]]
+if.app-id = "net.imput.helium"
+run = ["layout floating", 'move-node-to-workspace "1.Browser"']
 
 [[on-window-detected]]
 if.app-id = "com.mitchellh.ghostty"
@@ -98,10 +98,6 @@ run = ['move-node-to-workspace "2.Terminal"']
 [[on-window-detected]]
 if.app-id = "com.apple.Terminal"
 run = ['move-node-to-workspace "2.Terminal"']
-
-[[on-window-detected]]
-if.app-id = "com.google.Chrome"
-run = ['move-node-to-workspace "1.Chrome"']
 
 [[on-window-detected]]
 if.app-id = "com.apple.dt.Xcode"
