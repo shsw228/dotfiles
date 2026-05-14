@@ -104,3 +104,24 @@ if [ -f "$HOME/.local/bin/env" ]; then
 fi
 
 [[ -f ~/.config/zsh/local.zsh ]] && source ~/.config/zsh/local.zsh
+
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+
+  case $- in
+    *i*)
+      function _zoxide_zi() {
+        local result
+        result=$(zoxide query -i </dev/tty)
+        if [ -n "${result}" ]; then
+          BUFFER="cd ${(q-)result}"
+          zle accept-line
+        else
+          zle reset-prompt
+        fi
+      }
+      zle -N _zoxide_zi
+      bindkey '^g' _zoxide_zi
+      ;;
+  esac
+fi
