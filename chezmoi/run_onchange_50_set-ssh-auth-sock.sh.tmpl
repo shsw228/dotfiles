@@ -1,0 +1,39 @@
+#!/bin/sh
+# Fork など libssh2 系 GUI クライアントが 1Password の SSH agent を見つけられるよう、
+# SSH_AUTH_SOCK を launchd の env に登録する。
+# 即時反映と再起動後の永続化のため、LaunchAgent plist も配置する。
+set -eu
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+label="com.shsw228.ssh-auth-sock"
+plist="$HOME/Library/LaunchAgents/${label}.plist"
+sock="$HOME/.1password-agent.sock"
+
+mkdir -p "$HOME/Library/LaunchAgents"
+
+cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${label}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/launchctl</string>
+        <string>setenv</string>
+        <string>SSH_AUTH_SOCK</string>
+        <string>${sock}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+launchctl unload "$plist" 2>/dev/null || true
+launchctl load -w "$plist"
+launchctl setenv SSH_AUTH_SOCK "$sock"
