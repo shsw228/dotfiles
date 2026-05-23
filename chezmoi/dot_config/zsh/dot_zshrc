@@ -41,6 +41,10 @@ fi
 
 alias vim="nvim"
 
+if command -v eza >/dev/null 2>&1; then
+  alias ls="eza --icons --group-directories-first"
+fi
+
 case $- in
   *i*)
     function _fzf-select-history() {
