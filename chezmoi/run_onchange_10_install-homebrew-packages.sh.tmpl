@@ -20,10 +20,10 @@ cat >"$tmp_brewfile" <<'EOF_BREWFILE'
 {{ include "Brewfile" }}
 EOF_BREWFILE
 
-if [ "{{ if dig "profile" "is_personal_pc" true . }}1{{ else }}0{{ end }}" = "1" ] && [ "${CHEZMOI_CI:-0}" != "1" ]; then
-  cat >>"$tmp_brewfile" <<'EOF_PERSONAL_BREWFILE'
-{{ include "Brewfile.personal" }}
-EOF_PERSONAL_BREWFILE
+source_dir="{{ .chezmoi.sourceDir }}"
+personal_brewfile="$source_dir/Brewfile.personal"
+if [ "{{ if dig "profile" "is_personal_pc" true . }}1{{ else }}0{{ end }}" = "1" ] && [ "${CHEZMOI_CI:-0}" != "1" ] && [ -f "$personal_brewfile" ]; then
+  cat "$personal_brewfile" >>"$tmp_brewfile"
 fi
 
 "$brew_cmd" bundle --file="$tmp_brewfile"

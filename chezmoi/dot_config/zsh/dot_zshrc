@@ -66,6 +66,9 @@ EOF
   local source_dir file editor_cmd
   source_dir="$(chezmoi source-path)"
   file="${source_dir}/Brewfile.personal"
+  if [ ! -f "$file" ] && [ -f "${source_dir}/Brewfile.personal.example" ]; then
+    cp "${source_dir}/Brewfile.personal.example" "$file"
+  fi
   editor_cmd="${EDITOR:-vi}"
   "$editor_cmd" "$file"
 }
