@@ -2,6 +2,7 @@ setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_SAVE_NO_DUPS
 setopt HIST_IGNORE_SPACE
 setopt NOFLOWCONTROL
+setopt IGNORE_EOF
 
 autoload -Uz add-zsh-hook
 autoload -Uz chpwd_recent_dirs cdr

@@ -17,28 +17,33 @@ min_time = 0
 format = '[](fg:67)[󰪢 $duration](bg:67 fg:255)[](fg:67)'
 
 [directory]
-home_symbol = " "
-read_only = "  "
+home_symbol = " "
+read_only = "  "
 style = "bg:240 fg:255"
 truncation_length = 3
 truncation_symbol = ".../"
 format = '[](fg:240)[󰉋 → $path]($style)[](fg:240)'
 
 [directory.substitutions]
-"Desktop" = "  "
-"Documents" = "  "
-"Downloads" = "  "
+"Desktop" = "  "
+"Documents" = "  "
+"Downloads" = "  "
 "Music" = " 󰎈 "
-"Pictures" = "  "
-"Videos" = "  "
+"Pictures" = "  "
+"Videos" = "  "
 "GitHub" = " 󰊤 "
-"Developer" = "  "
+"Developer" = "  "
 
 [git_branch]
 symbol = "󰘬"
 truncation_length = 16
 truncation_symbol = "…"
 format = " [](fg:252)[$symbol $branch](fg:235 bg:252)[](fg:252)"
+
+
+[git_commit]
+commit_hash_length = 4
+tag_symbol = "  "
 
 [git_state]
 format = '\([$state( $progress_current/$progress_total)]($style)\) '
