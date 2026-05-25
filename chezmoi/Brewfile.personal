@@ -1,3 +1,4 @@
 cask "altserver"
 cask "discord"
 cask "kicad"
+brew "mint"

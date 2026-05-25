@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__pencil"
+    ],
+    "defaultMode": "auto"
+  },
+  "enabledPlugins": {
+    "swift-lsp@claude-plugins-official": true,
+    "swiftui-expert@swiftui-expert-skill": true
+  },
+  "extraKnownMarketplaces": {
+    "swiftui-expert-skill": {
+      "source": {
+        "source": "github",
+        "repo": "AvdLee/SwiftUI-Agent-Skill"
+      }
+    }
+  },
+  "effortLevel": "high",
+  "skipAutoPermissionPrompt": true,
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline-command.sh"
+  }
+}
