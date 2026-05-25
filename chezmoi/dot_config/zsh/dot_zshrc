@@ -47,6 +47,17 @@ if command -v eza >/dev/null 2>&1; then
 fi
 
 function cbp() {
+  case "${1:-}" in
+    -h|--help|help)
+      cat <<'EOF'
+Usage: cbp
+
+Open chezmoi Brewfile.personal with $EDITOR (fallback: vi).
+EOF
+      return 0
+      ;;
+  esac
+
   if ! command -v chezmoi >/dev/null 2>&1; then
     echo "chezmoi command not found" >&2
     return 1
