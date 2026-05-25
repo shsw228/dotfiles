@@ -2,6 +2,7 @@ setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_SAVE_NO_DUPS
 setopt HIST_IGNORE_SPACE
 setopt NOFLOWCONTROL
+setopt IGNORE_EOF
 
 autoload -Uz add-zsh-hook
 autoload -Uz chpwd_recent_dirs cdr
@@ -44,6 +45,30 @@ alias vim="nvim"
 if command -v eza >/dev/null 2>&1; then
   alias ls="eza --icons --group-directories-first"
 fi
+
+function cbp() {
+  case "${1:-}" in
+    -h|--help|help)
+      cat <<'EOF'
+Usage: cbp
+
+Open chezmoi Brewfile.personal with $EDITOR (fallback: vi).
+EOF
+      return 0
+      ;;
+  esac
+
+  if ! command -v chezmoi >/dev/null 2>&1; then
+    echo "chezmoi command not found" >&2
+    return 1
+  fi
+
+  local source_dir file editor_cmd
+  source_dir="$(chezmoi source-path)"
+  file="${source_dir}/Brewfile.personal"
+  editor_cmd="${EDITOR:-vi}"
+  "$editor_cmd" "$file"
+}
 
 case $- in
   *i*)
