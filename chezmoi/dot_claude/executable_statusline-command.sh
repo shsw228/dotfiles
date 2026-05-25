@@ -1,8 +1,17 @@
 #!/bin/sh
 input=$(cat)
 
+# Fallback when jq is unavailable.
+if ! command -v jq >/dev/null 2>&1; then
+  cwd="${PWD:-.}"
+  dir=$(basename "$cwd")
+  printf "\033[34m%s\033[0m" "$dir"
+  exit 0
+fi
+
 # Directory (basename of cwd from JSON)
 cwd=$(echo "$input" | jq -r '.cwd // .workspace.current_dir // empty')
+[ -n "$cwd" ] || cwd="${PWD:-.}"
 dir=$(basename "$cwd")
 
 # Model display name
