@@ -46,6 +46,19 @@ if command -v eza >/dev/null 2>&1; then
   alias ls="eza --icons --group-directories-first"
 fi
 
+function cbp() {
+  if ! command -v chezmoi >/dev/null 2>&1; then
+    echo "chezmoi command not found" >&2
+    return 1
+  fi
+
+  local source_dir file editor_cmd
+  source_dir="$(chezmoi source-path)"
+  file="${source_dir}/Brewfile.personal"
+  editor_cmd="${EDITOR:-vi}"
+  "$editor_cmd" "$file"
+}
+
 case $- in
   *i*)
     function _fzf-select-history() {
