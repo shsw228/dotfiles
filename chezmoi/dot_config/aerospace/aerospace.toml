@@ -5,6 +5,11 @@ default-root-container-orientation = "horizontal"
 automatically-unhide-macos-hidden-apps = true
 start-at-login = true
 
+exec-on-workspace-change = [
+  "/bin/zsh",
+  "-c",
+  "/opt/homebrew/bin/sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE",
+]
 on-focus-changed = [
   "move-mouse window-lazy-center",
   "exec-and-forget /bin/zsh -lc \"layout=\\$(aerospace list-windows --focused --format '%{window-layout}' 2>/dev/null); if [ \\\"$layout\\\" = floating ]; then borders active_color=0xfff5a97f inactive_color=0xff494d64 width=5.0; else borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0; fi\"",
@@ -12,10 +17,11 @@ on-focus-changed = [
 after-startup-command = [
   "exec-and-forget borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0",
   "exec-and-forget /bin/zsh -lc \"layout=\\$(aerospace list-windows --focused --format '%{window-layout}' 2>/dev/null); if [ \\\"$layout\\\" = floating ]; then borders active_color=0xfff5a97f inactive_color=0xff494d64 width=5.0; else borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0; fi\"",
+  "exec-and-forget /bin/zsh -c '/opt/homebrew/bin/sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$(/opt/homebrew/bin/aerospace list-workspaces --focused)'",
 ]
 
 [gaps.outer]
-top = 5
+top = 37
 bottom = 5
 left = 5
 right = 5
