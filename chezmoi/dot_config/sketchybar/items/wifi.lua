@@ -20,15 +20,19 @@ local wifi = sbar.add("item", "wifi", {
     height = 22,
     corner_radius = 6,
   },
-  update_freq = 60,
+  update_freq = 120,
 })
 
 local function refresh()
+  -- macOS 14+ では networksetup / ipconfig は位置情報権限なしで SSID を <redacted> に
+  -- 伏せる。system_profiler の SPAirPortDataType だけは権限不要で実 SSID を返す。
+  -- 実行に数秒かかるが sbar.exec が非同期なのでバー側はブロックしない。
   sbar.exec(
-    "networksetup -getairportnetwork en0 2>/dev/null || echo 'Current Wi-Fi Network: '",
+    "system_profiler SPAirPortDataType -json 2>/dev/null "
+      .. "| jq -r 'first(..|objects|.spairport_current_network_information?|select(.)|._name)' 2>/dev/null",
     function(result)
-      local ssid = (result or ""):match("Current Wi%-Fi Network:%s*(.-)%s*$") or ""
-      if ssid == "" or ssid == "You are not associated with an AirPort network." then
+      local ssid = (result or ""):gsub("%s+$", "")
+      if ssid == "" or ssid == "null" then
         wifi:set({
           icon  = { string = icons.wifi.disconnected, color = colors.grey },
           label = { string = "off" },

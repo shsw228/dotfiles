@@ -24,4 +24,10 @@ return {
     tiling   = "􀏝",
     floating = "􀎮",
   },
+  audio = {
+    speaker    = "􀊥",
+    headphones = "􀑈",
+    airpods    = "􀺹",
+    bluetooth  = "􀋨",
+  },
 }

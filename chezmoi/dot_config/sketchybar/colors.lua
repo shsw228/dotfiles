@@ -12,8 +12,8 @@ local colors = {
   transparent = 0x00000000,
 
   bar = {
-    bg     = 0xee1e2030,
-    border = 0xff494d64,
+    bg     = 0x00000000,
+    border = 0x00000000,
   },
   bg1    = 0xff363a4f,
   bg2    = 0xff494d64,
