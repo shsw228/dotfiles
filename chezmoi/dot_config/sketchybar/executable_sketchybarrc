@@ -1,0 +1,9 @@
+#!/bin/sh
+# sketchybar が起動時に読む shell エントリ。Lua 構成を読み込む。
+set -eu
+
+PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
+export PATH
+
+CONFIG_DIR="${HOME}/.config/sketchybar"
+exec lua "${CONFIG_DIR}/init.lua"

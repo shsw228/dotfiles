@@ -1,0 +1,28 @@
+#!/bin/sh
+# SbarLua (FelixKratz/SbarLua) を ~/.local/share/sketchybar_lua/ に導入する
+set -eu
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+target="${HOME}/.local/share/sketchybar_lua/sketchybar.so"
+if [ -f "$target" ]; then
+  exit 0
+fi
+
+if ! command -v lua >/dev/null 2>&1; then
+  echo "lua が見つからないため SbarLua の導入をスキップします" >&2
+  exit 0
+fi
+
+if ! command -v make >/dev/null 2>&1; then
+  echo "make が見つからないため SbarLua の導入をスキップします" >&2
+  exit 0
+fi
+
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+git clone --depth 1 https://github.com/FelixKratz/SbarLua.git "$tmp_dir/SbarLua"
+(cd "$tmp_dir/SbarLua" && make install)
