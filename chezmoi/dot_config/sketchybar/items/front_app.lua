@@ -8,7 +8,9 @@ local front_app = sbar.add("item", "front_app", {
     color = colors.white,
     padding_left  = 8,
     padding_right = 8,
-    max_chars = 32,
+    max_chars = 24,
+    width = 160,
+    align = "left",
   },
   background = {
     color = colors.transparent,
