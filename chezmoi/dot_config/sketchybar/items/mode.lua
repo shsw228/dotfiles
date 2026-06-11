@@ -23,26 +23,24 @@ local mode = sbar.add("item", "window.mode", {
   updates = true,
 })
 
-local function refresh()
-  sbar.exec(
-    "aerospace list-windows --focused --format '%{window-layout}' 2>/dev/null",
-    function(result)
-      local layout = (result or ""):gsub("%s+", "")
-      if layout == "floating" then
-        mode:set({
-          icon  = { string = icons.layout.floating, color = colors.orange },
-          label = { string = "floating" },
-        })
-      else
-        mode:set({
-          icon  = { string = icons.layout.tiling, color = colors.blue },
-          label = { string = "tiling" },
-        })
-      end
-    end
-  )
+local last_state = nil
+local function apply(floating)
+  local resolved = floating and "floating" or "tiling"
+  if resolved == last_state then return end
+  last_state = resolved
+  if floating then
+    mode:set({
+      icon  = { string = icons.layout.floating, color = colors.orange },
+      label = { string = "floating" },
+    })
+  else
+    mode:set({
+      icon  = { string = icons.layout.tiling, color = colors.blue },
+      label = { string = "tiling" },
+    })
+  end
 end
 
-mode:subscribe({ "front_app_switched", "aerospace_workspace_change", "window_focus" }, refresh)
-
-refresh()
+mode:subscribe("yashiki_focus_change", function(env)
+  apply(env.FLOAT == "true")
+end)

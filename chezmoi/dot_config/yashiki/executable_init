@@ -1,0 +1,112 @@
+#!/bin/sh
+# yashiki init script
+# 旧 AeroSpace 設定に手触りを寄せる構成。tags = AeroSpace の workspace 相当。
+# 元設定: ~/.config/aerospace/aerospace.toml
+
+# Homebrew を yashiki の exec パスに追加（borders などの呼び出し用）
+yashiki add-exec-path /opt/homebrew/bin
+
+##### レイアウトと余白 #####
+yashiki layout-set-default tatami
+# top は sketchybar 32px + 余白 5px = 37。残りは AeroSpace 旧設定と同じ
+yashiki set-outer-gap 37 5 5 5
+yashiki layout-cmd --layout tatami set-inner-gap 5
+
+##### カーソル / フォーカス挙動 #####
+# 旧 on-focus-changed の "move-mouse window-lazy-center" 相当
+yashiki set-cursor-warp on-focus-change
+
+##### メニューバー #####
+# sketchybar 側で workspace 表示するので yashiki 内蔵バーは無効
+yashiki set-menu-bar-status disabled
+
+##### 連携プロセス #####
+# JankyBorders を yashiki に紐づけて起動（yashiki quit で一緒に停止）
+yashiki exec --track "borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0"
+
+##### tag 切替バインド #####
+# alt-N             : tag N を単独表示
+# alt-ctrl-N        : tag N を現在の view に追加・除去（複数tag同時表示）
+# alt-shift-N       : フォーカス中ウィンドウを tag N へ移動
+# alt-shift-ctrl-N  : フォーカス中ウィンドウの tag N 所属をトグル（多重所属）
+for i in 1 2 3 4 5 6 7 8 9; do
+  bit=$((1 << (i - 1)))
+  yashiki bind "alt-$i"            tag-view           "$bit"
+  yashiki bind "alt-ctrl-$i"       tag-toggle         "$bit"
+  yashiki bind "alt-shift-$i"      window-move-to-tag "$bit"
+  yashiki bind "alt-shift-ctrl-$i" window-toggle-tag  "$bit"
+done
+yashiki bind "alt-0"            tag-view           "$((1 << 9))"
+yashiki bind "alt-ctrl-0"       tag-toggle         "$((1 << 9))"
+yashiki bind "alt-shift-0"      window-move-to-tag "$((1 << 9))"
+yashiki bind "alt-shift-ctrl-0" window-toggle-tag  "$((1 << 9))"
+
+# tag back-and-forth (旧 alt-tab = workspace-back-and-forth)
+yashiki bind alt-tab tag-view-last
+
+##### ウィンドウフォーカス (旧 alt-h/j/k/l) #####
+yashiki bind alt-h window-focus left
+yashiki bind alt-j window-focus down
+yashiki bind alt-k window-focus up
+yashiki bind alt-l window-focus right
+
+##### ウィンドウスワップ (旧 alt-shift-h/j/k/l = move) #####
+yashiki bind alt-shift-h window-swap left
+yashiki bind alt-shift-j window-swap down
+yashiki bind alt-shift-k window-swap up
+yashiki bind alt-shift-l window-swap right
+
+##### モニタ切替 (旧 alt-shift-tab = focus-monitor --wrap-around next) #####
+yashiki bind alt-shift-tab output-focus next
+
+##### スクリーンショット (旧 alt-shift-s) #####
+yashiki bind alt-shift-s exec "screencapture -i -c"
+
+##### レイアウト/フロート操作 (旧 alt-f / alt-space) #####
+yashiki bind alt-f window-toggle-fullscreen
+yashiki bind alt-space window-toggle-float
+
+##### resize モード (旧 alt-r → mode resize) #####
+# tatami は master-stack なので h/l で main-ratio、j/k で main-count を調整
+yashiki declare-mode resize
+yashiki bind alt-r enter-mode resize
+yashiki bind --mode resize h layout-cmd dec-main-ratio
+yashiki bind --mode resize l layout-cmd inc-main-ratio
+yashiki bind --mode resize j layout-cmd dec-main-count
+yashiki bind --mode resize k layout-cmd inc-main-count
+yashiki bind --mode resize return enter-mode normal
+yashiki bind --mode resize escape enter-mode normal
+
+##### ウィンドウルール (旧 on-window-detected) #####
+# tag bitmask: 1=1, 2=2, 3=4, 4=8
+
+# Browser → tag 1
+yashiki rule-add --app-id com.google.Chrome tags 1
+yashiki rule-add --app-id net.imput.helium tags 1
+
+# Terminal → tag 2
+yashiki rule-add --app-id com.mitchellh.ghostty tags 2
+yashiki rule-add --app-id com.apple.Terminal tags 2
+
+# Xcode + iOS Simulator → tag 3
+yashiki rule-add --app-id com.apple.dt.Xcode tags 4
+yashiki rule-add --app-id com.apple.iphonesimulator tags 4
+
+# AI / codex → tag 4
+yashiki rule-add --app-id com.openai.codex tags 8
+
+# 共通: 非通常ウィンドウ（パレット類）は管理対象から外す
+yashiki rule-add --window-level other ignore
+# popup / dropdown / tooltip 等の close ボタンを持たない補助 window は無視
+yashiki rule-add --close-button none ignore
+# 役割不明の補助 window（Chromeのautocomplete等）も無視
+yashiki rule-add --subrole AXUnknown ignore
+
+# 補助系アプリは tile 対象から外す
+yashiki rule-add --app-id pro.betterdisplay.BetterDisplay ignore
+yashiki rule-add --app-id lo.cafe.NotchNook ignore
+yashiki rule-add --app-id com.pointum.hazeover ignore
+yashiki rule-add --app-name borders ignore
+yashiki rule-add --app-name sketchybar ignore
+yashiki rule-add --app-id com.raycast.macos ignore
+yashiki rule-add --app-id com.knollsoft.Hookshot ignore
