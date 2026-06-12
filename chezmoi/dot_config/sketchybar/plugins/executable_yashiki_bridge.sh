@@ -17,7 +17,28 @@ if ! command -v yashiki >/dev/null 2>&1; then
   exit 1
 fi
 
+# sketchybar 再起動で旧 bridge が残るのを防ぐため、自分以外の bridge を kill。
+# pgrep -f は ps -ax の COMMAND を正規表現でマッチするので、引数経由で "yashiki_bridge.sh"
+# を含むだけのプロセス (chezmoi apply 等) を巻き込まないよう、bash 実行パスを起点に絞り込む。
+SELF_PID=$$
+for pid in $(pgrep -f '^(/[^ ]*/)?bash .*/yashiki_bridge\.sh$'); do
+  [ "$pid" = "$SELF_PID" ] && continue
+  kill "$pid" 2>/dev/null
+done
+
 SKETCHYBAR="/opt/homebrew/bin/sketchybar"
+BORDERS="/opt/homebrew/bin/borders"
+
+# borders は yashiki から exec --track 起動。focus変更時に色を切替えるため
+# 旧 aerospace 設定にあった floating=オレンジ / tiling=白 のロジックを復元。
+update_borders() {
+  local floating="$1"
+  if [ "$floating" = "true" ]; then
+    "$BORDERS" active_color=0xfff5a97f inactive_color=0xff494d64 width=5.0 2>/dev/null &
+  else
+    "$BORDERS" active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0 2>/dev/null &
+  fi
+}
 
 # 状態:
 #   displays[id]=visible_tags
@@ -74,6 +95,7 @@ trigger_focus() {
   local floating
   floating=$(echo "$STATE" | jq -r '.windows[.focused_window].floating // false')
   "$SKETCHYBAR" --trigger yashiki_focus_change FLOAT="$floating" 2>/dev/null
+  update_borders "$floating"
 }
 
 process_snapshot() {
