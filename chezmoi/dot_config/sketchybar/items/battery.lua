@@ -14,11 +14,6 @@ local battery = sbar.add("item", "battery", {
     color = colors.white,
     padding_right = 8,
   },
-  background = {
-    color = colors.bg1,
-    height = 22,
-    corner_radius = 6,
-  },
   update_freq = 120,
 })
 

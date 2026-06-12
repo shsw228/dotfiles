@@ -7,7 +7,6 @@ sbar.add("event", "yashiki_focus_change")
 sbar.add("event", "volume_state_refresh")
 
 require("items.yashiki")
-require("items.mode")
 require("items.front_app")
 
 -- 右側 (反対側) のアイテムは追加順に右から左へ並ぶ

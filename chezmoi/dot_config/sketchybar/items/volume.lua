@@ -16,11 +16,6 @@ local volume = sbar.add("item", "volume", {
     width = 40,
     align = "right",
   },
-  background = {
-    color = colors.bg1,
-    height = 22,
-    corner_radius = 6,
-  },
   -- 左クリックでミュートをトグル
   click_script = [[osascript -e 'set volume output muted (not (output muted of (get volume settings)))' && /opt/homebrew/bin/sketchybar --trigger volume_state_refresh]],
 })

@@ -11,6 +11,8 @@ yashiki layout-set-default tatami
 # top は sketchybar 32px + 余白 5px = 37。残りは AeroSpace 旧設定と同じ
 yashiki set-outer-gap 37 5 5 5
 yashiki layout-cmd --layout tatami set-inner-gap 5
+# master:stack = 6:4
+yashiki layout-cmd --layout tatami set-main-ratio 0.6
 
 ##### カーソル / フォーカス挙動 #####
 # 旧 on-focus-changed の "move-mouse window-lazy-center" 相当
@@ -25,23 +27,22 @@ yashiki set-menu-bar-status disabled
 yashiki exec --track "borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0"
 
 ##### tag 切替バインド #####
-# alt-N             : tag N を単独表示
-# alt-ctrl-N        : tag N を現在の view に追加・除去（複数tag同時表示）
-# alt-shift-N       : フォーカス中ウィンドウを tag N へ移動
-# alt-shift-ctrl-N  : フォーカス中ウィンドウの tag N 所属をトグル（多重所属）
+# yashiki 公式 Power User config に整合させた構成:
+#   alt-N        : tag N を単独表示（exclusive）
+#   alt-shift-N  : フォーカス中ウィンドウを tag N へ移動（誤配置の修正用）
+#   alt-ctrl-N   : フォーカス中ウィンドウの tag N 所属をトグル
+#                  （多tag所属でwindowを複数tagから可視にする。例: Slackを全tagに）
 for i in 1 2 3 4 5 6 7 8 9; do
   bit=$((1 << (i - 1)))
-  yashiki bind "alt-$i"            tag-view           "$bit"
-  yashiki bind "alt-ctrl-$i"       tag-toggle         "$bit"
-  yashiki bind "alt-shift-$i"      window-move-to-tag "$bit"
-  yashiki bind "alt-shift-ctrl-$i" window-toggle-tag  "$bit"
+  yashiki bind "alt-$i"       tag-view           "$bit"
+  yashiki bind "alt-shift-$i" window-move-to-tag "$bit"
+  yashiki bind "alt-ctrl-$i"  window-toggle-tag  "$bit"
 done
-yashiki bind "alt-0"            tag-view           "$((1 << 9))"
-yashiki bind "alt-ctrl-0"       tag-toggle         "$((1 << 9))"
-yashiki bind "alt-shift-0"      window-move-to-tag "$((1 << 9))"
-yashiki bind "alt-shift-ctrl-0" window-toggle-tag  "$((1 << 9))"
+yashiki bind "alt-0"       tag-view           "$((1 << 9))"
+yashiki bind "alt-shift-0" window-move-to-tag "$((1 << 9))"
+yashiki bind "alt-ctrl-0"  window-toggle-tag  "$((1 << 9))"
 
-# tag back-and-forth (旧 alt-tab = workspace-back-and-forth)
+# tag back-and-forth（前回 view 復元）
 yashiki bind alt-tab tag-view-last
 
 ##### ウィンドウフォーカス (旧 alt-h/j/k/l) #####
@@ -56,8 +57,9 @@ yashiki bind alt-shift-j window-swap down
 yashiki bind alt-shift-k window-swap up
 yashiki bind alt-shift-l window-swap right
 
-##### モニタ切替 (旧 alt-shift-tab = focus-monitor --wrap-around next) #####
-yashiki bind alt-shift-tab output-focus next
+##### モニタ操作（yashiki 公式 Power User 準拠） #####
+yashiki bind alt-o       output-focus next   # フォーカスを次モニタへ
+yashiki bind alt-shift-o output-send  next   # フォーカス中ウィンドウを次モニタへ送る
 
 ##### スクリーンショット (旧 alt-shift-s) #####
 yashiki bind alt-shift-s exec "screencapture -i -c"
@@ -65,6 +67,8 @@ yashiki bind alt-shift-s exec "screencapture -i -c"
 ##### レイアウト/フロート操作 (旧 alt-f / alt-space) #####
 yashiki bind alt-f window-toggle-fullscreen
 yashiki bind alt-space window-toggle-float
+# フォーカス中ウィンドウを master 領域に昇格 (元の master は stack に降格)
+yashiki bind alt-z layout-cmd zoom
 
 ##### resize モード (旧 alt-r → mode resize) #####
 # tatami は master-stack なので h/l で main-ratio、j/k で main-count を調整
@@ -94,6 +98,10 @@ yashiki rule-add --app-id com.apple.iphonesimulator tags 4
 
 # AI / codex → tag 4
 yashiki rule-add --app-id com.openai.codex tags 8
+
+# Music → tag 10 (alt-0)、外部モニタが接続されてればMacBook本体側へ
+yashiki rule-add --app-id com.apple.Music tags 512
+yashiki rule-add --app-id com.apple.Music output "Built-in"
 
 # 共通: 非通常ウィンドウ（パレット類）は管理対象から外す
 yashiki rule-add --window-level other ignore

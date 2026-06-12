@@ -13,4 +13,5 @@ sbar.bar({
   topmost   = "window",
   sticky    = true,
   shadow    = false,
+  display   = "all",
 })
