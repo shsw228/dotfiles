@@ -5,50 +5,80 @@ local settings = require("settings")
 
 local SKETCHYBAR = settings.paths.sketchybar
 
-local function pick_icon(vol)
-  if vol <= 0  then return icons.volume["0"]
-  elseif vol <= 20 then return icons.volume["10"]
-  elseif vol <= 50 then return icons.volume["33"]
-  elseif vol <= 80 then return icons.volume["66"]
-  else return icons.volume["100"]
-  end
-end
-
-local volume = sbar.add("item", "volume", {
+-- 出力デバイス + 音量 + ミュート状態をひとつのアイテムに統合
+--   icon  = デバイス種別 (speaker/headphones/airpods/bluetooth)
+--   label = "DeviceName 75%"  / mute時は "DeviceName mute"
+--   click = ミュートトグル
+local audio = sbar.add("item", "audio", {
   position = "right",
   icon = {
-    string = icons.volume["66"],
-    color  = colors.white,
+    string = icons.audio.speaker,
+    color  = colors.magenta,
     padding_left  = 8,
     padding_right = 4,
   },
   label = {
     color = colors.white,
     padding_right = 8,
-    width = 40,
-    align = "right",
+    max_chars = 24,
   },
-  -- 左クリックでミュートをトグル
+  update_freq = 10,
   click_script = [[osascript -e 'set volume output muted (not (output muted of (get volume settings)))' && ]]
     .. SKETCHYBAR .. " --trigger volume_state_refresh",
 })
 
+local function pick_device_icon(name)
+  local n = name:lower()
+  if n:find("airpods") then return icons.audio.airpods end
+  if n:find("headphone") or n:find("ヘッドホン") or n:find("phones") then
+    return icons.audio.headphones
+  end
+  if n:find("bluetooth") then return icons.audio.bluetooth end
+  return icons.audio.speaker
+end
+
+-- 出力デバイス名キャッシュ。volume_change で頻繁に呼ばれても device 取得しない
+local current_device = "—"
+local current_device_icon = icons.audio.speaker
+
 local function render(vol, muted)
+  local label_str
   if muted then
-    volume:set({
-      icon  = { string = icons.volume["0"], color = colors.red },
-      label = { string = "mute" },
+    label_str = current_device .. " mute"
+    audio:set({
+      icon  = { string = current_device_icon, color = colors.red },
+      label = { string = label_str },
     })
   else
-    volume:set({
-      icon  = { string = pick_icon(vol), color = colors.white },
-      label = { string = tostring(vol) .. "%" },
+    label_str = current_device .. " " .. tostring(vol) .. "%"
+    audio:set({
+      icon  = { string = current_device_icon, color = colors.magenta },
+      label = { string = label_str },
     })
   end
 end
 
--- OS に音量・ミュート状態を問い合わせて反映
-local function refresh()
+-- 出力デバイス名を取得 → cache
+local function refresh_device(after)
+  sbar.exec(
+    "system_profiler SPAudioDataType -json 2>/dev/null | "
+      .. "jq -r '.. | objects | select(.coreaudio_default_audio_output_device==\"spaudio_yes\") | ._name' | head -1",
+    function(result)
+      local name = (result or ""):gsub("%s+$", "")
+      if name == "" then
+        current_device = "—"
+        current_device_icon = icons.audio.speaker
+      else
+        current_device = name
+        current_device_icon = pick_device_icon(name)
+      end
+      if after then after() end
+    end
+  )
+end
+
+-- OS に音量・ミュート状態問い合わせて render
+local function refresh_volume()
   sbar.exec(
     "osascript -e 'set s to get volume settings' "
       .. "-e 'set v to output volume of s as integer' "
@@ -61,13 +91,18 @@ local function refresh()
   )
 end
 
--- volume_change は INFO に新音量が来るのでそのまま描画 (muted は変わらず=false 前提)
-volume:subscribe("volume_change", function(env)
+local function refresh_all()
+  refresh_device(refresh_volume)
+end
+
+audio:subscribe("volume_change", function(env)
   local vol = tonumber(env.INFO)
-  if vol then render(vol, false) else refresh() end
+  if vol then render(vol, false) else refresh_volume() end
 end)
 
-volume:subscribe("volume_state_refresh", refresh)
-volume:subscribe({ "system_woke", "forced" }, refresh)
+audio:subscribe("volume_state_refresh", refresh_volume)
+-- routine = update_freq による定期発火。デバイス変化を拾うため device も含めて refresh
+audio:subscribe({ "routine", "forced", "system_woke" }, refresh_all)
 
-refresh()
+-- 初回: デバイス + 音量
+refresh_all()
