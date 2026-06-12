@@ -47,7 +47,6 @@ return {
     ["com.hnc.Discord"]           = "􀒲",
     ["com.danpristupov.Fork"]     = "􀙱",    -- arrow.triangle.branch
     ["com.1password.1password"]   = "􀎠",    -- lock
-    ["com.tinyspeck.slackmacgap"] = "􀒲",
     ["com.apple.systempreferences"] = "􀣋",  -- gearshape
     ["com.apple.finder"]            = "􀂒",  -- folder
     ["com.apple.mail"]              = "􀍕",  -- envelope

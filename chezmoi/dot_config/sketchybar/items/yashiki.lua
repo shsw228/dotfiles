@@ -1,11 +1,14 @@
 local sbar = require("sketchybar")
 local colors = require("colors")
 local icons = require("icons")
+local settings = require("settings")
+
+local YASHIKI = settings.paths.yashiki
 
 -- 起動時に yashiki list-outputs を読んで、ディスプレイを検出。
 -- 各yashiki output_id を sketchybar 側の display index (1=main, 2..=secondary) にマップする。
 local function discover_outputs()
-  local f = io.popen("/opt/homebrew/bin/yashiki list-outputs 2>&1")
+  local f = io.popen(YASHIKI .. " list-outputs 2>&1")
   local outputs = {}
   if not f then
     return { { yashiki_id = "1", sb_display = 1 } }
@@ -92,7 +95,7 @@ for _, out in ipairs(outputs) do
         padding_right = 8,
         color = colors.bg2,
       },
-      click_script = "/opt/homebrew/bin/yashiki tag-view --output " .. yid .. " " .. bitmask,
+      click_script = YASHIKI .. " tag-view --output " .. yid .. " " .. bitmask,
     })
 
     item:subscribe("yashiki_workspace_change", function(env)

@@ -17,8 +17,9 @@ local clock = sbar.add("item", "clock", {
   update_freq = 30,
 })
 
-clock:subscribe({ "routine", "forced", "system_woke" }, function()
+local function refresh()
   clock:set({ label = { string = os.date("%m/%d (%a) %H:%M") } })
-end)
+end
 
-clock:set({ label = { string = os.date("%m/%d (%a) %H:%M") } })
+clock:subscribe({ "routine", "forced", "system_woke" }, refresh)
+refresh()
