@@ -30,6 +30,15 @@ return {
     airpods    = "􀺹",
     bluetooth  = "􀋨",
   },
+  media = {
+    playing = "􀊃",  -- play.fill
+    paused  = "􀊆",  -- pause.fill
+    note    = "􀫀",  -- music.note
+  },
+  system = {
+    cpu = "􁋂",  -- cpu
+    mem = "􀫦",  -- memorychip
+  },
   -- app_id → 表示アイコン。bridge から流れてくる TAG_APPS_N を yashiki.lua がここで引く。
   -- マッチしないものは default を表示。
   app = {

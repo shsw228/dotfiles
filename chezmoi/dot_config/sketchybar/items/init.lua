@@ -15,6 +15,8 @@ require("items.battery")
 require("items.wifi")
 require("items.volume")
 require("items.audio_device")
+require("items.media")
+require("items.system")
 
 -- yashiki state stream を購読するブリッジを起動
 sbar.exec(os.getenv("HOME") .. "/.config/sketchybar/plugins/yashiki_bridge.sh &")
