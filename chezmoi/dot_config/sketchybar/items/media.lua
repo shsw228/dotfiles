@@ -2,8 +2,8 @@ local sbar = require("sketchybar")
 local colors = require("colors")
 local icons = require("icons")
 
--- sketchybar 標準の media_change イベントを受けて再生中曲を表示する。
--- 何も再生していない (state ≠ playing) ときは hidden で隠す。
+-- sketchybar 標準には media_change イベントがないので、osascript ポーリングで
+-- Apple Music の再生状態を取得する。再生していないときは item を隠す。
 local media = sbar.add("item", "media", {
   position = "right",
   icon = {
@@ -16,43 +16,53 @@ local media = sbar.add("item", "media", {
     color = colors.white,
     padding_right = 8,
     max_chars = 30,
-    width = "dynamic",
   },
   drawing = false,
-  -- 左クリックで再生・一時停止 (Now Playing コマンド)
-  click_script = "osascript -e 'tell application \"System Events\" to key code 16 using {function down}' 2>/dev/null",
+  updates = true,
+  update_freq = 5,
+  click_script = "osascript -e 'tell application \"Music\" to playpause' 2>/dev/null",
 })
 
-media:subscribe("media_change", function(env)
-  -- env.INFO は JSON で title / artist / state を含む
-  if not env.INFO or env.INFO == "" then
-    media:set({ drawing = false })
-    return
-  end
-  -- JSON 構造例:
-  --   {"app": "Music", "artist": "Foo", "title": "Bar", "state": "playing"}
-  local state  = env.INFO:match('"state"%s*:%s*"([^"]+)"')
-  local title  = env.INFO:match('"title"%s*:%s*"([^"]+)"')
-  local artist = env.INFO:match('"artist"%s*:%s*"([^"]+)"')
+-- Apple Music の player state + 曲情報を返すワンライナー (paren付きでparser安定)
+local MUSIC_CMD = table.concat({
+  [[osascript]],
+  [[-e 'try']],
+  [[-e 'tell application "Music"']],
+  [[-e   'if it is running and player state is playing then']],
+  [[-e     'return (artist of current track) & "|" & (name of current track)']],
+  [[-e   'end if']],
+  [[-e 'end tell']],
+  [[-e 'end try']],
+  [[-e 'return ""']],
+  [[2>/dev/null]],
+}, " ")
 
-  if state ~= "playing" then
-    media:set({ drawing = false })
-    return
-  end
+local function refresh()
+  sbar.exec(MUSIC_CMD, function(result)
+    local body = (result or ""):gsub("%s+$", "")
+    if body == "" then
+      media:set({ drawing = false })
+      return
+    end
+    -- 形式: "artist|title"
+    local artist, title = body:match("^([^|]*)|(.+)$")
+    if not title or title == "" then
+      media:set({ drawing = false })
+      return
+    end
+    local label
+    if artist and artist ~= "" then
+      label = artist .. " — " .. title
+    else
+      label = title
+    end
+    media:set({
+      drawing = true,
+      icon  = { string = icons.media.playing, color = colors.magenta },
+      label = { string = label },
+    })
+  end)
+end
 
-  local label
-  if artist and artist ~= "" and title and title ~= "" then
-    label = artist .. " — " .. title
-  elseif title and title ~= "" then
-    label = title
-  else
-    media:set({ drawing = false })
-    return
-  end
-
-  media:set({
-    drawing = true,
-    icon  = { string = icons.media.playing },
-    label = { string = label },
-  })
-end)
+media:subscribe({ "routine", "forced", "system_woke" }, refresh)
+refresh()
