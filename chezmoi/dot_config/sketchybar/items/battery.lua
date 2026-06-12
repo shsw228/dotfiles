@@ -14,6 +14,8 @@ local battery = sbar.add("item", "battery", {
     color = colors.white,
     padding_right = 8,
   },
+  drawing = false,
+  updates = true,
   update_freq = 120,
 })
 
@@ -21,12 +23,16 @@ local function refresh()
   sbar.exec("pmset -g batt", function(result)
     result = result or ""
     local pct = tonumber(result:match("(%d+)%%")) or 0
-    local charging = result:find("AC Power") ~= nil
+    local on_ac = result:find("AC Power") ~= nil
+
+    -- AC 接続時は表示しない (バッテリー駆動時のみ表示)
+    if on_ac then
+      battery:set({ drawing = false })
+      return
+    end
 
     local icon
-    if charging then
-      icon = icons.battery.charging
-    elseif pct >= 90 then icon = icons.battery["100"]
+    if pct >= 90 then icon = icons.battery["100"]
     elseif pct >= 60 then icon = icons.battery["75"]
     elseif pct >= 40 then icon = icons.battery["50"]
     elseif pct >= 20 then icon = icons.battery["25"]
@@ -34,13 +40,13 @@ local function refresh()
     end
 
     local color
-    if charging then color = colors.green
-    elseif pct >= 30 then color = colors.white
+    if pct >= 30 then color = colors.white
     elseif pct >= 15 then color = colors.yellow
     else color = colors.red
     end
 
     battery:set({
+      drawing = true,
       icon  = { string = icon, color = color },
       label = { string = tostring(pct) .. "%" },
     })

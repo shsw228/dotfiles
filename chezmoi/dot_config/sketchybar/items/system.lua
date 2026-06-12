@@ -10,12 +10,12 @@ local system = sbar.add("item", "system", {
     string = icons.system.cpu,
     color  = colors.blue,
     padding_left  = 8,
-    padding_right = 4,
+    padding_right = 2,
   },
   label = {
     color = colors.white,
     padding_right = 8,
-    width = 90,
+    width = 130,
     align = "right",
   },
   update_freq = 5,
@@ -39,9 +39,12 @@ local function refresh()
       local cpu = tonumber(cpu_str) or 0
       local mem = tonumber(mem_str) or 0
       local worst = math.max(cpu, mem)
+      -- icon は CPU、label に memory アイコンを埋め込んで両方識別可能に
       system:set({
-        icon  = { color = color_for(worst) },
-        label = { string = string.format("%d%% %d%%", cpu, mem) },
+        icon  = { color = color_for(cpu) },
+        label = {
+          string = string.format("%d%%  %s %d%%", cpu, icons.system.mem, mem),
+        },
       })
     end
   )

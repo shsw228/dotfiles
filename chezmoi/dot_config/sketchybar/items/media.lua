@@ -15,8 +15,11 @@ local media = sbar.add("item", "media", {
   label = {
     color = colors.white,
     padding_right = 8,
-    max_chars = 30,
+    max_chars = 24,           -- max_chars 超は scroll_texts が有効ならスクロール
+    width = 180,
+    scroll_duration = 120,    -- 1文字ぶん移動するのにかける ms
   },
+  scroll_texts = true,        -- label を自動スクロール
   drawing = false,
   updates = true,
   update_freq = 5,
