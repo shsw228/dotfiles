@@ -15,11 +15,6 @@ local audio = sbar.add("item", "audio_device", {
     padding_right = 8,
     max_chars = 18,
   },
-  background = {
-    color = colors.bg1,
-    height = 22,
-    corner_radius = 6,
-  },
   update_freq = 5,
 })
 

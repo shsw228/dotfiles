@@ -15,11 +15,6 @@ local wifi = sbar.add("item", "wifi", {
     padding_right = 8,
     max_chars = 20,
   },
-  background = {
-    color = colors.bg1,
-    height = 22,
-    corner_radius = 6,
-  },
   update_freq = 120,
 })
 

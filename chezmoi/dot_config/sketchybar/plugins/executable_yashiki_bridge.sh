@@ -1,8 +1,8 @@
 #!/bin/bash
 # yashiki の state stream を購読し、sketchybar 側へ
-#   yashiki_workspace_change (ACTIVE_TAGS / OCCUPIED_TAGS)
-#   yashiki_focus_change     (FLOAT=true|false)
-# のカスタムイベントを発火するブリッジ。
+#   yashiki_workspace_change OUTPUT_{id}_ACTIVE_TAGS / _OCCUPIED_TAGS / _TAG_APPS_{1..10}
+#   yashiki_focus_change     FLOAT=true|false
+# を発火するブリッジ。各ディスプレイの状態を独立に送る。
 # sketchybarrc から & 起動する常駐プロセス。
 
 set -u
@@ -21,20 +21,53 @@ SKETCHYBAR="/opt/homebrew/bin/sketchybar"
 
 # 状態:
 #   displays[id]=visible_tags
-#   windows[id]={tags,floating}
+#   windows[id]={tags, floating, app_id, output}
 #   focused=focused_display_id (string)
 #   focused_window=focused_window_id (string)
 STATE='{"displays":{},"windows":{},"focused":"0","focused_window":"0"}'
 
 trigger_workspace() {
-  local active occupied=0 t
-  active=$(echo "$STATE" | jq -r '.displays[.focused] // 0')
-  for t in $(echo "$STATE" | jq -r '.windows[].tags // 0'); do
-    occupied=$((occupied | t))
-  done
-  "$SKETCHYBAR" --trigger yashiki_workspace_change \
-    ACTIVE_TAGS="$active" \
-    OCCUPIED_TAGS="$occupied" 2>/dev/null
+  local args
+  args=$(echo "$STATE" | python3 -c '
+import json, sys
+state = json.load(sys.stdin)
+displays = state.get("displays", {})
+windows  = state.get("windows", {})
+
+lines = []
+for disp_id, vtags in displays.items():
+    # active = そのディスプレイの visible_tags
+    lines.append(f"OUTPUT_{disp_id}_ACTIVE_TAGS={vtags}")
+
+    # occupied = そのディスプレイに存在する window の tags の和
+    occupied = 0
+    tag_apps = [[] for _ in range(10)]
+    for win in windows.values():
+        if str(win.get("output", "")) != str(disp_id):
+            continue
+        tags = int(win.get("tags") or 0)
+        app  = win.get("app_id") or ""
+        occupied |= tags
+        if app:
+            for i in range(10):
+                if tags & (1 << i):
+                    if app not in tag_apps[i]:
+                        tag_apps[i].append(app)
+
+    lines.append(f"OUTPUT_{disp_id}_OCCUPIED_TAGS={occupied}")
+    for i, apps in enumerate(tag_apps):
+        lines.append(f"OUTPUT_{disp_id}_TAG_APPS_{i+1}=" + ",".join(apps))
+
+print("\n".join(lines))
+')
+
+  local sb_args=()
+  while IFS= read -r kv; do
+    [ -z "$kv" ] && continue
+    sb_args+=("$kv")
+  done <<< "$args"
+
+  "$SKETCHYBAR" --trigger yashiki_workspace_change "${sb_args[@]}" 2>/dev/null
 }
 
 trigger_focus() {
@@ -46,8 +79,8 @@ trigger_focus() {
 process_snapshot() {
   STATE=$(echo "$1" | jq '{
     displays: (.displays | map({(.id | tostring): .visible_tags}) | add // {}),
-    windows: (.windows | map({(.id | tostring): {tags: .tags, floating: .is_floating}}) | add // {}),
-    focused: (.focused_display_id | tostring),
+    windows:  (.windows  | map({(.id | tostring): {tags: .tags, floating: .is_floating, app_id: (.app_id // ""), output: .output_id}}) | add // {}),
+    focused:  (.focused_display_id | tostring),
     focused_window: (.focused_window_id // 0 | tostring)
   }')
   trigger_workspace
@@ -73,13 +106,15 @@ process_event() {
       trigger_focus
       ;;
     window_created|window_updated)
-      local wid wtags wfloat wfocused
+      local wid wtags wfloat wfocused wapp woutput
       wid=$(echo "$line" | jq -r '.window.id')
       wtags=$(echo "$line" | jq -r '.window.tags')
       wfloat=$(echo "$line" | jq -r '.window.is_floating')
       wfocused=$(echo "$line" | jq -r '.window.is_focused')
-      STATE=$(echo "$STATE" | jq --arg wid "$wid" --argjson wtags "$wtags" --argjson wfloat "$wfloat" \
-        '.windows[$wid] = {tags: $wtags, floating: $wfloat}')
+      wapp=$(echo "$line" | jq -r '.window.app_id // ""')
+      woutput=$(echo "$line" | jq -r '.window.output_id')
+      STATE=$(echo "$STATE" | jq --arg wid "$wid" --argjson wtags "$wtags" --argjson wfloat "$wfloat" --arg wapp "$wapp" --argjson woutput "$woutput" \
+        '.windows[$wid] = {tags: $wtags, floating: $wfloat, app_id: $wapp, output: $woutput}')
       if [ "$wfocused" = "true" ]; then
         STATE=$(echo "$STATE" | jq --arg wid "$wid" '.focused_window = $wid')
       fi

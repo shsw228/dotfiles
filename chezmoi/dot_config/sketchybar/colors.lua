@@ -12,7 +12,7 @@ local colors = {
   transparent = 0x00000000,
 
   bar = {
-    bg     = 0x00000000,
+    bg     = 0x80000000,  -- 約50%の黒で軽く陰影をかける
     border = 0x00000000,
   },
   bg1    = 0xff363a4f,
