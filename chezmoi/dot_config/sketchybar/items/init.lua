@@ -61,3 +61,5 @@ end
 
 -- yashiki state stream を購読するブリッジを起動
 sbar.exec(os.getenv("HOME") .. "/.config/sketchybar/plugins/yashiki_bridge.sh &")
+-- ディスプレイ構成変更で sketchybar を再起動させる watcher
+sbar.exec(os.getenv("HOME") .. "/.config/sketchybar/plugins/display_watcher.sh &")
