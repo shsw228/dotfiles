@@ -9,9 +9,13 @@ sbar.add("event", "volume_state_refresh")
 require("items.yashiki")
 require("items.front_app")
 
--- 中央配置 (notch displayでは notch を挟んで左右に分割される)
+-- 中央配置の並び (左→右): date → notch_spacer → clock → notch_balance
+-- notch_spacer: MBP モデル検出から notch width を割り出し、その幅 + 余白を確保
+-- notch_balance: date/clock の実描画幅差を sketchybar query で算出して埋める
 require("items.date")
+require("items.notch_spacer")
 require("items.clock")
+require("items.notch_balance")
 
 -- 右側のアイテムは追加順に右から左へ並ぶ
 -- 並び (右→左): battery (AC時非表示) | wifi | input_source | audio (volume統合) | system | media
@@ -22,28 +26,38 @@ require("items.volume")
 require("items.system")
 require("items.media")
 
--- 中央 / 右側 のグループを bracket でまとめてブロック化
+-- スリープ復帰時に yashiki を retile させるイベントハンドラ (非表示item)
+require("items.wake")
+
+-- 右側のグループを bracket でまとめる。中央は notch ディスプレイで items が
+-- notch を挟んで分割されるので、bracket でまとめると分離を妨げる→ 中央は素のまま。
+local displays = require("displays")
+
 local bracket_bg = {
-  color = 0x99000000,  -- 60% 黒。各ブロックが独立して見えるよう存在感のある背景
+  color = 0x99000000,
   corner_radius = 8,
   height = 28,
   border_width = 0,
 }
 
-sbar.add("bracket", "center_bracket", { "date", "clock" }, {
-  background = bracket_bg,
-})
-
-sbar.add("bracket", "right_bracket", {
-  "media",
-  "system",
-  "audio",
-  "input_source",
-  "wifi",
-  "battery",
-}, {
-  background = bracket_bg,
-})
+local ext = displays.external_indices[1]
+if ext then
+  sbar.add("bracket", "right_bracket_external", {
+    "media", "system", "audio", "input_source", "wifi", "battery",
+  }, {
+    background = bracket_bg,
+    associated_display = ext,
+  })
+end
+if displays.builtin_index then
+  -- MacBook 側: CPU/RAM 無し、audio/media は minimum item
+  sbar.add("bracket", "right_bracket_builtin", {
+    "media_simple", "audio_simple", "input_source", "wifi", "battery",
+  }, {
+    background = bracket_bg,
+    associated_display = displays.builtin_index,
+  })
+end
 
 -- yashiki state stream を購読するブリッジを起動
 sbar.exec(os.getenv("HOME") .. "/.config/sketchybar/plugins/yashiki_bridge.sh &")

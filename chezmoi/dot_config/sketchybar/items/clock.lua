@@ -7,6 +7,7 @@ local clock = sbar.add("item", "clock", {
   icon = { drawing = false, padding_left = 0, padding_right = 0 },
   label = {
     color = colors.white,
+    padding_left  = 8,
     padding_right = 8,
   },
   update_freq = 30,
