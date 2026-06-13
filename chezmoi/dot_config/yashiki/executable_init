@@ -8,9 +8,10 @@ yashiki add-exec-path /opt/homebrew/bin
 
 ##### レイアウトと余白 #####
 yashiki layout-set-default tatami
-# top は sketchybar 32px + 余白 5px = 37。残りは AeroSpace 旧設定と同じ
-yashiki set-outer-gap 37 5 5 5
-yashiki layout-cmd --layout tatami set-inner-gap 5
+# top: sketchybar y_offset(6) + height(32) + バー下の余白(6) = 44
+# 他: 全方位 12px の outer gap
+yashiki set-outer-gap 44 12 12 12
+yashiki layout-cmd --layout tatami set-inner-gap 10
 # master:stack = 6:4
 yashiki layout-cmd --layout tatami set-main-ratio 0.6
 
