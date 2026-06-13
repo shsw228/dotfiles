@@ -16,7 +16,6 @@ local front = sbar.add("item", "front_app", {
     color  = colors.white,
     padding_left  = 4,
     padding_right = 8,
-    width = 200,
     max_chars = 28,
     align = "left",
   },
