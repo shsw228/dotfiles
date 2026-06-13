@@ -1,15 +1,10 @@
 local sbar = require("sketchybar")
 local colors = require("colors")
-local icons = require("icons")
 
+-- 時刻表示。中央配置で notch ディスプレイでは notch の右側に出る (date より後で追加)
 local clock = sbar.add("item", "clock", {
-  position = "right",
-  icon = {
-    string = icons.clock,
-    color  = colors.yellow,
-    padding_left  = 8,
-    padding_right = 4,
-  },
+  position = "center",
+  icon = { drawing = false, padding_left = 0, padding_right = 0 },
   label = {
     color = colors.white,
     padding_right = 8,
@@ -18,7 +13,7 @@ local clock = sbar.add("item", "clock", {
 })
 
 local function refresh()
-  clock:set({ label = { string = os.date("%m/%d (%a) %H:%M") } })
+  clock:set({ label = { string = os.date("%H:%M") } })
 end
 
 clock:subscribe({ "routine", "forced", "system_woke" }, refresh)
