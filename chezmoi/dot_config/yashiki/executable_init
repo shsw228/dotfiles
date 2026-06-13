@@ -107,6 +107,9 @@ yashiki rule-add --app-id com.openai.codex tags 8
 yashiki rule-add --app-id com.apple.Music tags 512
 yashiki rule-add --app-id com.apple.Music output "Built-in"
 
+# System Settings は programmatic resize を拒否するため float 扱い
+yashiki rule-add --app-id com.apple.systempreferences float
+
 # 共通: 非通常ウィンドウ（パレット類）は管理対象から外す
 yashiki rule-add --window-level other ignore
 # popup / dropdown / tooltip 等の close ボタンを持たない補助 window は無視
