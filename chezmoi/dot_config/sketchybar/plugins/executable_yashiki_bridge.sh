@@ -28,6 +28,7 @@ done
 
 SKETCHYBAR="/opt/homebrew/bin/sketchybar"
 BORDERS="/opt/homebrew/bin/borders"
+YASHIKI="/opt/homebrew/bin/yashiki"
 
 # borders は yashiki から exec --track 起動。focus変更時に色を切替えるため
 # 旧 aerospace 設定にあった floating=オレンジ / tiling=白 のロジックを復元。
@@ -127,6 +128,18 @@ process_event() {
       trigger_workspace
       trigger_focus
       ;;
+    window_focused)
+      local wid
+      wid=$(echo "$line" | jq -r '.window_id // "null"')
+      if [ "$wid" = "null" ] || [ "$wid" = "0" ] || [ -z "$wid" ]; then
+        # focus が失効した (主に新規 window 作成直後)。alt-hjkl 等が効かなくなる
+        # ため window-focus next で focus を回復する
+        "$YASHIKI" window-focus next 2>/dev/null &
+      else
+        STATE=$(echo "$STATE" | jq --arg wid "$wid" '.focused_window = $wid')
+        trigger_focus
+      fi
+      ;;
     window_created|window_updated)
       local wid wtags wfloat wfocused wapp woutput
       wid=$(echo "$line" | jq -r '.window.id')
@@ -144,9 +157,14 @@ process_event() {
       trigger_focus
       ;;
     window_destroyed)
-      local wid
+      local wid focused
       wid=$(echo "$line" | jq -r '.window_id')
       STATE=$(echo "$STATE" | jq --arg wid "$wid" 'del(.windows[$wid])')
+      # destroyed なのが focused window だったら yashiki に focus 回復させる
+      focused=$("$YASHIKI" focused-window 2>/dev/null)
+      if [ -z "$focused" ] || [ "$focused" = "$wid" ]; then
+        "$YASHIKI" window-focus next 2>/dev/null &
+      fi
       trigger_workspace
       trigger_focus
       ;;

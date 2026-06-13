@@ -2,30 +2,15 @@ local sbar = require("sketchybar")
 local colors = require("colors")
 local icons = require("icons")
 local settings = require("settings")
+local displays = require("displays")
 
 local SKETCHYBAR = settings.paths.sketchybar
 
--- 出力デバイス + 音量 + ミュート状態をひとつのアイテムに統合
---   icon  = デバイス種別 (speaker/headphones/airpods/bluetooth)
---   label = "DeviceName 75%"  / mute時は "DeviceName mute"
---   click = ミュートトグル
-local audio = sbar.add("item", "audio", {
-  position = "right",
-  icon = {
-    string = icons.audio.speaker,
-    color  = colors.magenta,
-    padding_left  = 8,
-    padding_right = 4,
-  },
-  label = {
-    color = colors.white,
-    padding_right = 8,
-    max_chars = 24,
-  },
-  update_freq = 10,
-  click_script = [[osascript -e 'set volume output muted (not (output muted of (get volume settings)))' && ]]
-    .. SKETCHYBAR .. " --trigger volume_state_refresh",
-})
+-- 共通の状態キャッシュ
+local current_device = "—"
+local current_device_icon = icons.audio.speaker
+local current_vol = 0
+local current_muted = false
 
 local function pick_device_icon(name)
   local n = name:lower()
@@ -37,20 +22,59 @@ local function pick_device_icon(name)
   return icons.audio.speaker
 end
 
--- 出力デバイス名キャッシュ。volume_change で頻繁に呼ばれても device 取得しない
-local current_device = "—"
-local current_device_icon = icons.audio.speaker
+local CLICK_MUTE = [[osascript -e 'set volume output muted (not (output muted of (get volume settings)))' && ]]
+  .. SKETCHYBAR .. " --trigger volume_state_refresh"
 
--- icon = デバイス種別 / label = "デバイス名 · 75%"
-local function render(vol, muted)
-  local right = muted and "mute" or (tostring(vol) .. "%")
-  audio:set({
-    icon  = { string = current_device_icon, color = muted and colors.red or colors.magenta },
-    label = { string = current_device .. " · " .. right },
+-- ディスプレイごとに表示形式の異なる item を生成し、それぞれの render 関数を返す。
+local function make_audio_item(name, display_idx, simple)
+  local label_props
+  if simple then
+    label_props = { color = colors.white, padding_right = 8, width = 40, align = "right" }
+  else
+    label_props = { color = colors.white, padding_right = 8, max_chars = 24 }
+  end
+  local item = sbar.add("item", name, {
+    position = "right",
+    associated_display = display_idx,
+    icon = {
+      string = icons.audio.speaker,
+      color  = colors.magenta,
+      padding_left  = 8,
+      padding_right = 4,
+    },
+    label = label_props,
+    update_freq = 10,
+    click_script = CLICK_MUTE,
   })
+  return function()
+    local right = current_muted and "mute" or (tostring(current_vol) .. "%")
+    local label_str = simple and right or (current_device .. " · " .. right)
+    item:set({
+      icon  = { string = current_device_icon, color = current_muted and colors.red or colors.magenta },
+      label = { string = label_str },
+    })
+  end
 end
 
--- 出力デバイス名を取得 → cache
+-- ディスプレイ構成に応じて item を立てる
+local renderers = {}
+local ext = displays.external_indices[1]
+if ext then
+  table.insert(renderers, make_audio_item("audio", ext, false))
+end
+if displays.builtin_index then
+  table.insert(renderers, make_audio_item("audio_simple", displays.builtin_index, true))
+end
+if #renderers == 0 then
+  -- ディスプレイ情報を取れなかった fallback: 全 display 向けに full
+  table.insert(renderers, make_audio_item("audio", nil, false))
+end
+
+local function render_all()
+  for _, r in ipairs(renderers) do r() end
+end
+
+-- OS 問い合わせ
 local function refresh_device(after)
   sbar.exec(
     "system_profiler SPAudioDataType -json 2>/dev/null | "
@@ -69,7 +93,6 @@ local function refresh_device(after)
   )
 end
 
--- OS に音量・ミュート状態問い合わせて render
 local function refresh_volume()
   sbar.exec(
     "osascript -e 'set s to get volume settings' "
@@ -78,7 +101,9 @@ local function refresh_volume()
       .. "-e '\"\" & v & \"|\" & m'",
     function(result)
       local vol_str, muted_str = (result or ""):match("^(%-?%d+)|(%a+)")
-      render(tonumber(vol_str) or 0, muted_str == "true")
+      current_vol = tonumber(vol_str) or 0
+      current_muted = muted_str == "true"
+      render_all()
     end
   )
 end
@@ -87,14 +112,23 @@ local function refresh_all()
   refresh_device(refresh_volume)
 end
 
-audio:subscribe("volume_change", function(env)
+-- 非表示イベントリレー item に subscribe をまとめる。update_freq でroutine駆動。
+local relay = sbar.add("item", "audio_event_relay", {
+  drawing = false,
+  updates = true,
+  update_freq = 10,
+})
+relay:subscribe("volume_change", function(env)
   local vol = tonumber(env.INFO)
-  if vol then render(vol, false) else refresh_volume() end
+  if vol then
+    current_vol = vol
+    current_muted = false
+    render_all()
+  else
+    refresh_volume()
+  end
 end)
+relay:subscribe("volume_state_refresh", refresh_volume)
+relay:subscribe({ "routine", "forced", "system_woke" }, refresh_all)
 
-audio:subscribe("volume_state_refresh", refresh_volume)
--- routine = update_freq による定期発火。デバイス変化を拾うため device も含めて refresh
-audio:subscribe({ "routine", "forced", "system_woke" }, refresh_all)
-
--- 初回: デバイス + 音量
 refresh_all()

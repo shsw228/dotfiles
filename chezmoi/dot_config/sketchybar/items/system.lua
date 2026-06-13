@@ -1,6 +1,14 @@
 local sbar = require("sketchybar")
 local colors = require("colors")
 local icons = require("icons")
+local displays = require("displays")
+
+-- CPU/RAM は MacBook 本体側 (notch ディスプレイ) には出さない方針。
+-- 外部モニタが無い場合は表示する。
+local target_display = displays.external_indices[1]
+if displays.builtin_index and not target_display then
+  return  -- Built-in しか無い → 表示しない
+end
 
 -- CPU 使用率と物理メモリ使用率をひとつのアイテムにまとめて表示。
 -- top と memory_pressure は呼び出しコスト低め (top -n 0 で即返り)
@@ -8,6 +16,7 @@ local icons = require("icons")
 -- アイコン⇔数値の余分なpaddingが入らないようにする
 local system = sbar.add("item", "system", {
   position = "right",
+  associated_display = target_display,
   -- icon は非表示。padding を 0 にして空のスペースが残らないようにする
   icon = { drawing = false, padding_left = 0, padding_right = 0 },
   label = {
