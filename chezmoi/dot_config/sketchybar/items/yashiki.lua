@@ -69,15 +69,26 @@ local function build_icon_string(apps_csv)
   return table.concat(out)
 end
 
+local function bracket_bg()
+  return {
+    color = 0x99000000,    -- 60% 黒
+    corner_radius = 8,
+    height = 28,
+    border_width = 0,
+  }
+end
+
 for _, out in ipairs(outputs) do
   local yid          = out.yashiki_id
   local active_key   = "OUTPUT_" .. yid .. "_ACTIVE_TAGS"
   local occupied_key = "OUTPUT_" .. yid .. "_OCCUPIED_TAGS"
+  local member_names = {}
 
   for _, tag in ipairs(tags) do
     local bitmask  = 1 << (tag.num - 1)
     local apps_key = "OUTPUT_" .. yid .. "_TAG_APPS_" .. tag.num
     local item_id  = "yashiki." .. tag.num .. ".d" .. out.sb_display
+    table.insert(member_names, item_id)
 
     local item = sbar.add("item", item_id, {
       position = "left",
@@ -134,4 +145,10 @@ for _, out in ipairs(outputs) do
       })
     end)
   end
+
+  -- このディスプレイの tag インジケータをまとめた bracket
+  sbar.add("bracket", "tags_bracket_d" .. out.sb_display, member_names, {
+    background = bracket_bg(),
+    associated_display = out.sb_display,
+  })
 end
