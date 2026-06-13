@@ -41,21 +41,13 @@ end
 local current_device = "—"
 local current_device_icon = icons.audio.speaker
 
+-- icon = デバイス種別 / label = "デバイス名 · 75%"
 local function render(vol, muted)
-  local label_str
-  if muted then
-    label_str = current_device .. " mute"
-    audio:set({
-      icon  = { string = current_device_icon, color = colors.red },
-      label = { string = label_str },
-    })
-  else
-    label_str = current_device .. " " .. tostring(vol) .. "%"
-    audio:set({
-      icon  = { string = current_device_icon, color = colors.magenta },
-      label = { string = label_str },
-    })
-  end
+  local right = muted and "mute" or (tostring(vol) .. "%")
+  audio:set({
+    icon  = { string = current_device_icon, color = muted and colors.red or colors.magenta },
+    label = { string = current_device .. " · " .. right },
+  })
 end
 
 -- 出力デバイス名を取得 → cache

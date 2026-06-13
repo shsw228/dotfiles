@@ -36,8 +36,9 @@ return {
     note    = "􀫀",  -- music.note
   },
   system = {
-    cpu = "􁋂",  -- cpu
-    mem = "􀫦",  -- memorychip
+    -- Nerd Font MDI
+    cpu = "󰘚",  -- nf-md-chip
+    mem = "󰍛",  -- nf-md-memory
   },
   -- app_id → 表示アイコン。bridge から流れてくる TAG_APPS_N を yashiki.lua がここで引く。
   -- マッチしないものは default を表示。
