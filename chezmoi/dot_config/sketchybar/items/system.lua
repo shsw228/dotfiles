@@ -4,19 +4,16 @@ local icons = require("icons")
 
 -- CPU 使用率と物理メモリ使用率をひとつのアイテムにまとめて表示。
 -- top と memory_pressure は呼び出しコスト低め (top -n 0 で即返り)
+-- icon 領域は使わず、label の中に "cpuアイコン+% memアイコン+%" を全部詰めて
+-- アイコン⇔数値の余分なpaddingが入らないようにする
 local system = sbar.add("item", "system", {
   position = "right",
-  icon = {
-    string = icons.system.cpu,
-    color  = colors.blue,
-    padding_left  = 8,
-    padding_right = 2,
-  },
+  -- icon は非表示。padding を 0 にして空のスペースが残らないようにする
+  icon = { drawing = false, padding_left = 0, padding_right = 0 },
   label = {
     color = colors.white,
+    padding_left  = 8,
     padding_right = 8,
-    width = 130,
-    align = "right",
   },
   update_freq = 5,
 })
@@ -39,11 +36,10 @@ local function refresh()
       local cpu = tonumber(cpu_str) or 0
       local mem = tonumber(mem_str) or 0
       local worst = math.max(cpu, mem)
-      -- icon は CPU、label に memory アイコンを埋め込んで両方識別可能に
       system:set({
-        icon  = { color = color_for(cpu) },
         label = {
-          string = string.format("%d%%  %s %d%%", cpu, icons.system.mem, mem),
+          string = string.format("CPU %d%%  RAM %d%%", cpu, mem),
+          color = color_for(cpu),
         },
       })
     end
