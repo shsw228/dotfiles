@@ -32,17 +32,19 @@ yashiki exec --track "borders active_color=0xffe1e3e4 inactive_color=0xff494d64 
 # yashiki 公式 Power User config に整合させた構成:
 #   alt-N        : tag N を単独表示（exclusive）
 #   alt-shift-N  : フォーカス中ウィンドウを tag N へ移動（誤配置の修正用）
-#   alt-ctrl-N   : フォーカス中ウィンドウの tag N 所属をトグル
-#                  （多tag所属でwindowを複数tagから可視にする。例: Slackを全tagに）
+#   alt-ctrl-N   : フォーカス中ウィンドウの tag N 所属をトグル。
+#                  追加方向 (まだ所属していない) のときは view も追従、
+#                  削除方向のときは view 据置。 (wrapper toggle_tag.sh)
+TOGGLE_TAG_SH="${HOME}/.config/yashiki/toggle_tag.sh"
 for i in 1 2 3 4 5 6 7 8 9; do
   bit=$((1 << (i - 1)))
   yashiki bind "alt-$i"       tag-view           "$bit"
   yashiki bind "alt-shift-$i" window-move-to-tag "$bit"
-  yashiki bind "alt-ctrl-$i"  window-toggle-tag  "$bit"
+  yashiki bind "alt-ctrl-$i"  exec               "$TOGGLE_TAG_SH $bit"
 done
 yashiki bind "alt-0"       tag-view           "$((1 << 9))"
 yashiki bind "alt-shift-0" window-move-to-tag "$((1 << 9))"
-yashiki bind "alt-ctrl-0"  window-toggle-tag  "$((1 << 9))"
+yashiki bind "alt-ctrl-0"  exec               "$TOGGLE_TAG_SH $((1 << 9))"
 
 # tag back-and-forth（前回 view 復元）
 yashiki bind alt-tab tag-view-last
@@ -73,15 +75,24 @@ yashiki bind alt-space window-toggle-float
 yashiki bind alt-z layout-cmd zoom
 
 ##### resize モード (旧 alt-r → mode resize) #####
-# tatami は master-stack なので h/l で main-ratio、j/k で main-count を調整
+# tatami は master-stack なので h/l で main-ratio、j/k で main-count を調整。
+# main-count は wrapper 経由で sketchybar へ通知。
+MAIN_COUNT_SH="${HOME}/.config/yashiki/main_count.sh"
 yashiki declare-mode resize
 yashiki bind alt-r enter-mode resize
 yashiki bind --mode resize h layout-cmd dec-main-ratio
 yashiki bind --mode resize l layout-cmd inc-main-ratio
-yashiki bind --mode resize j layout-cmd dec-main-count
-yashiki bind --mode resize k layout-cmd inc-main-count
+yashiki bind --mode resize j exec "$MAIN_COUNT_SH dec"
+yashiki bind --mode resize k exec "$MAIN_COUNT_SH inc"
 yashiki bind --mode resize return enter-mode normal
 yashiki bind --mode resize escape enter-mode normal
+
+# normal モードでも一発で main-count を増減できるショートカット
+yashiki bind alt-comma  exec "$MAIN_COUNT_SH dec"
+yashiki bind alt-period exec "$MAIN_COUNT_SH inc"
+
+# 起動直後に現在値を sketchybar へ通知 (初回表示用)
+yashiki exec "$MAIN_COUNT_SH notify"
 
 ##### ウィンドウルール (旧 on-window-detected) #####
 # tag bitmask: 1=1, 2=2, 3=4, 4=8

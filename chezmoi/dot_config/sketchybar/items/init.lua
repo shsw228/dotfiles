@@ -1,13 +1,18 @@
 local sbar = require("sketchybar")
 
--- yashiki 連動イベント（bridge スクリプトから --trigger で発火）
+-- yashiki 連動イベント（bridge / wrapper スクリプトから --trigger で発火）
 sbar.add("event", "yashiki_workspace_change")
 sbar.add("event", "yashiki_focus_change")
+sbar.add("event", "yashiki_mode_change")
+sbar.add("event", "yashiki_main_count_change")
 -- volume.lua の click_script からミュート反映用に内部発火
 sbar.add("event", "volume_state_refresh")
 
+-- 左側の並び (左→右): tag | front_app | yashiki_mode | yashiki_main_count
 require("items.yashiki")
 require("items.front_app")
+require("items.yashiki_mode")
+require("items.yashiki_main_count")
 
 -- 中央配置の並び (左→右): date → notch_spacer → clock → notch_balance
 -- notch_spacer: MBP モデル検出から notch width を割り出し、その幅 + 余白を確保

@@ -156,6 +156,11 @@ process_event() {
       trigger_workspace
       trigger_focus
       ;;
+    mode_changed)
+      local mode
+      mode=$(echo "$line" | jq -r '.mode // "normal"')
+      "$SKETCHYBAR" --trigger yashiki_mode_change MODE="$mode" 2>/dev/null
+      ;;
     window_destroyed)
       local wid focused
       wid=$(echo "$line" | jq -r '.window_id')
@@ -172,7 +177,7 @@ process_event() {
 }
 
 while true; do
-  yashiki subscribe --snapshot --filter tags,focus,window 2>/dev/null | while IFS= read -r line; do
+  yashiki subscribe --snapshot --filter tags,focus,window,mode 2>/dev/null | while IFS= read -r line; do
     [ -z "$line" ] && continue
     type=$(echo "$line" | jq -r '.type')
     if [ "$type" = "snapshot" ]; then
