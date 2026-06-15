@@ -7,8 +7,30 @@ tell application "System Events"
     make new login item at end with properties {name:"Raycast", path:"/Applications/Raycast.app", hidden:false}
   end if
 
-  if not (exists login item "AeroSpace") then
-    make new login item at end with properties {name:"AeroSpace", path:"/Applications/AeroSpace.app", hidden:false}
+  if not (exists login item "Yashiki") then
+    make new login item at end with properties {name:"Yashiki", path:"/Applications/Yashiki.app", hidden:true}
+  end if
+
+  -- AeroSpace は廃止済みなので login item から除去
+  if (exists login item "AeroSpace") then
+    delete login item "AeroSpace"
   end if
 end tell
 APPLESCRIPT
+
+# sketchybar は formula なので brew services で常駐させる
+if command -v brew >/dev/null 2>&1; then
+  brew_cmd="$(command -v brew)"
+elif [ -x /opt/homebrew/bin/brew ]; then
+  brew_cmd="/opt/homebrew/bin/brew"
+elif [ -x /usr/local/bin/brew ]; then
+  brew_cmd="/usr/local/bin/brew"
+else
+  brew_cmd=""
+fi
+
+if [ -n "$brew_cmd" ] && "$brew_cmd" list --formula sketchybar >/dev/null 2>&1; then
+  if ! "$brew_cmd" services list 2>/dev/null | awk '$1 == "sketchybar" {print $2}' | grep -qx "started"; then
+    "$brew_cmd" services start sketchybar >/dev/null 2>&1 || true
+  fi
+fi
