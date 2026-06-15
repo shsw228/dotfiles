@@ -8,8 +8,8 @@ yashiki add-exec-path /opt/homebrew/bin
 
 ##### レイアウトと余白 #####
 yashiki layout-set-default tatami
-# top: sketchybar y_offset(0) + height(32) + 余白(6) = 38
-yashiki set-outer-gap 38 12 12 12
+# top: sketchybar y_offset(8) + height(32) + 余白(8) = 48 (4の倍数で揃える)
+yashiki set-outer-gap 48 12 12 12
 yashiki layout-cmd --layout tatami set-inner-gap 10
 # master:stack = 6:4
 yashiki layout-cmd --layout tatami set-main-ratio 0.6
