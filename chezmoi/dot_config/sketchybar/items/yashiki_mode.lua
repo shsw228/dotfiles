@@ -1,5 +1,6 @@
 local sbar = require("sketchybar")
 local colors = require("colors")
+local styles = require("styles")
 
 -- yashiki が normal 以外の mode (resize 等) に入っているとき、左に mode 名バッジを
 -- 表示し、その下に popup でその mode のキー一覧を出す。
@@ -21,12 +22,8 @@ local mode_item = sbar.add("item", "yashiki_mode", {
   },
   popup = {
     align = "center",
-    background = {
-      color = 0xee000000,
-      corner_radius = 10,
-      border_width = 1,
-      border_color = colors.bg2,
-    },
+    blur_radius = styles.glass.blur_radius,
+    background = styles.glass.background,
     y_offset = 6,
   },
   drawing = false,
@@ -55,7 +52,7 @@ for i = 1, POPUP_ROWS do
     icon = { drawing = false },
     label = {
       string = "",
-      font = { family = "Monaspace Neon", style = "Regular", size = 12.0 },
+      font = { family = "Monaspace Neon", style = "Regular", size = 15.0 },
       color = colors.white,
       padding_left  = 14,
       padding_right = 14,

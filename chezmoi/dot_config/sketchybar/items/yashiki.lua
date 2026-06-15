@@ -2,6 +2,7 @@ local sbar = require("sketchybar")
 local colors = require("colors")
 local icons = require("icons")
 local settings = require("settings")
+local styles = require("styles")
 
 local YASHIKI = settings.paths.yashiki
 
@@ -67,15 +68,6 @@ local function build_icon_string(apps_csv)
     end
   end
   return table.concat(out)
-end
-
-local function bracket_bg()
-  return {
-    color = 0x99000000,    -- 60% 黒
-    corner_radius = 8,
-    height = 28,
-    border_width = 0,
-  }
 end
 
 for _, out in ipairs(outputs) do
@@ -148,7 +140,7 @@ for _, out in ipairs(outputs) do
 
   -- このディスプレイの tag インジケータをまとめた bracket
   sbar.add("bracket", "tags_bracket_d" .. out.sb_display, member_names, {
-    background = bracket_bg(),
+    background = styles.bracket_bg,
     associated_display = out.sb_display,
   })
 end
