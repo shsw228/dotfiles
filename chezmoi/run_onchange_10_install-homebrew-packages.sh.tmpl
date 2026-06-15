@@ -26,4 +26,19 @@ if [ "{{ if dig "profile" "is_personal_pc" true . }}1{{ else }}0{{ end }}" = "1"
   cat "$personal_brewfile" >>"$tmp_brewfile"
 fi
 
+# Homebrew 5.1.15+ では third-party tap に brew trust が必要なので、
+# bundle 前に Brewfile 内の non-official tap を tap & trust しておく。
+if "$brew_cmd" trust --help >/dev/null 2>&1; then
+  awk -F'"' '/^[[:space:]]*tap[[:space:]]+"/ {print $2}' "$tmp_brewfile" | while IFS= read -r tap_name; do
+    [ -z "$tap_name" ] && continue
+    case "$tap_name" in
+      homebrew/*) continue ;;
+    esac
+    if ! "$brew_cmd" tap | grep -qx "$tap_name"; then
+      "$brew_cmd" tap "$tap_name"
+    fi
+    "$brew_cmd" trust "$tap_name" >/dev/null 2>&1 || true
+  done
+fi
+
 "$brew_cmd" bundle --file="$tmp_brewfile"
