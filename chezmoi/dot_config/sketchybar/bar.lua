@@ -6,10 +6,9 @@ sbar.bar({
   color     = colors.bar.bg,
   border_color = colors.bar.border,
   border_width = 0,
-  -- y_offset=0 で macOS メニューバー位置に貼り付ける → notch handling が有効化される
-  -- (notch_width で center items を notch の左右に振り分け)
+  -- y_offset で画面上端からのオフセット。notch handling は notch_width 側で制御。
   margin    = 12,
-  y_offset  = 0,
+  y_offset  = 4,
   corner_radius = 10,
   -- notch display (MacBook): notch_width 分を中央から避けて items を左右に振る
   notch_width = 220,

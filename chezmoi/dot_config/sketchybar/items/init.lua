@@ -37,13 +37,9 @@ require("items.wake")
 -- 右側のグループを bracket でまとめる。中央は notch ディスプレイで items が
 -- notch を挟んで分割されるので、bracket でまとめると分離を妨げる→ 中央は素のまま。
 local displays = require("displays")
+local styles = require("styles")
 
-local bracket_bg = {
-  color = 0x99000000,
-  corner_radius = 8,
-  height = 28,
-  border_width = 0,
-}
+local bracket_bg = styles.bracket_bg
 
 local ext = displays.external_indices[1]
 if ext then
