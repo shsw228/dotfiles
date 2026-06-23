@@ -2,7 +2,16 @@
 	name = "hume"
 	email = "13506491+shsw228@users.noreply.github.com"
 
+# fetch / clone は canonical な `git@github.com:` のまま走らせ、
+# push のみ `github.com-personal:` の SSH alias 経由にする。
+# `insteadOf` だと git remote -v / Xcode Cloud などツール側に
+# alias 名のリモート URL が見えてしまい、Xcode Cloud が
+# `github.com` の repo として認識できない問題が出る。
+# `pushInsteadOf` は push 操作にだけ rewrite を適用するので、
+# fetch 用 URL は canonical に保たれて Xcode Cloud から認識可能。
+# fetch 側は `~/.ssh/config` の `Host github.com` が persona に応じた
+# 鍵 (personal mac なら github_personal.pub) を当てているため認証も通る。
 [url "git@github.com-personal:"]
-	insteadOf = git@github.com:
+	pushInsteadOf = git@github.com:
 [url "ssh://git@github.com-personal/"]
-	insteadOf = ssh://git@github.com/
+	pushInsteadOf = ssh://git@github.com/
