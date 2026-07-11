@@ -25,7 +25,7 @@ This places `~/.ssh/github_personal.pub`, `~/.ssh/github_work.pub`, and a minima
 
 ```sh
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
-  --source="$HOME/Developer/ghq/global/github.com/shsw228/dotfiles" \
+  --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
   git@github.com:shsw228/dotfiles.git
 ```
 
@@ -41,7 +41,7 @@ CHEZMOI_IS_PERSONAL_PC=false \
 GIT_NAME="Your Name" \
 GIT_EMAIL="you@company.com" \
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
-  --source="$HOME/Developer/ghq/global/github.com/shsw228/dotfiles" \
+  --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
   git@github.com:shsw228/dotfiles.git
 ```
 
