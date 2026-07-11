@@ -9,11 +9,6 @@ tell application "System Events"
 
   -- Yashiki の自動起動は手動で管理する（System Settings の Open at Login に
   -- 各自で追加）。dotfiles では作成も削除もしない。
-
-  -- AeroSpace は廃止済みなので login item から除去
-  if (exists login item "AeroSpace") then
-    delete login item "AeroSpace"
-  end if
 end tell
 APPLESCRIPT
 
