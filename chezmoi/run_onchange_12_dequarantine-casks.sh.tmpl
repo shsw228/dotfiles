@@ -1,0 +1,45 @@
+#!/bin/sh
+# brew cask で入れたアプリの Gatekeeper 検疫属性(com.apple.quarantine)を剥がす。
+# Homebrew 6.x で --no-quarantine が廃止されたため、bundle 後に一括で除去する。
+# 自分で管理する Brewfile 由来の cask は信頼する前提。
+#
+# Brewfile を変更(cask 追加など)したときだけ再実行されるよう、
+# Brewfile のハッシュを埋め込んでおく。
+# Brewfile hash: {{ include "Brewfile" | sha256sum }}
+set -eu
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+if command -v brew >/dev/null 2>&1; then
+  brew_cmd="$(command -v brew)"
+elif [ -x /opt/homebrew/bin/brew ]; then
+  brew_cmd="/opt/homebrew/bin/brew"
+elif [ -x /usr/local/bin/brew ]; then
+  brew_cmd="/usr/local/bin/brew"
+else
+  exit 0
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq が見つからないため cask の de-quarantine をスキップします" >&2
+  exit 0
+fi
+
+casks="$("$brew_cmd" list --cask 2>/dev/null || true)"
+[ -z "$casks" ] && exit 0
+
+# 各 cask の .app 成果物を列挙し、配置先で検疫属性を除去する。
+# 配置先は既定の /Applications と、ユーザー領域の ~/Applications を対象にする。
+# shellcheck disable=SC2086
+"$brew_cmd" info --cask --json=v2 $casks 2>/dev/null \
+  | jq -r '.casks[].artifacts[]? | objects | .app[]?' \
+  | while IFS= read -r app; do
+      [ -z "$app" ] && continue
+      for dir in "/Applications" "$HOME/Applications"; do
+        target="$dir/$app"
+        [ -e "$target" ] || continue
+        xattr -dr com.apple.quarantine "$target" 2>/dev/null || true
+      done
+    done
