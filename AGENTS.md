@@ -16,7 +16,7 @@ Run commands from the repository root.
 ## Coding Style & Naming Conventions
 Prefer small, explicit shell scripts and plain config files over clever abstractions. Keep shell scripts POSIX-friendly unless zsh-specific behavior is required. Match the current naming used by chezmoi: `dot_*` for required home-directory entrypoints, `dot_config/*` for `~/.config`, `remove_*` for files that must be removed, and `run_onchange_*` / `run_once_*` for scripts. Keep comments short and operational.
 
-Prefer XDG locations when an app supports them. In this repository, Git config lives at `chezmoi/dot_config/git/config.tmpl`, AeroSpace lives at `chezmoi/dot_config/aerospace/aerospace.toml`, and zsh keeps only root-level stubs while the main shell files live under `chezmoi/dot_config/zsh/`.
+Prefer XDG locations when an app supports them. In this repository, Git config lives at `chezmoi/dot_config/git/config.tmpl`, and zsh keeps only root-level stubs while the main shell files live under `chezmoi/dot_config/zsh/`.
 
 ## Testing Guidelines
 There is no formal test suite. Validate changes by running `chezmoi diff --source="$PWD"` or `chezmoi apply --source="$PWD" --dry-run`. For shell updates, use `zsh -n` on zsh files and `sh -n` on POSIX shell scripts.
