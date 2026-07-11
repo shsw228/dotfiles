@@ -20,8 +20,13 @@ This places `~/.ssh/github_personal.pub`, `~/.ssh/github_work.pub`, and a minima
 
 ### 2. Bootstrap with chezmoi
 
+`--source` を指定して、リポジトリを最初から ghq レイアウトのパスに直接クローンする
+（`~/.local/share/chezmoi` への二重クローンは発生しない）。
+
 ```sh
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply git@github.com:shsw228/dotfiles.git
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
+  --source="$HOME/Developer/ghq/global/github.com/shsw228/dotfiles" \
+  git@github.com:shsw228/dotfiles.git
 ```
 
 During `chezmoi init`, you will be asked whether this is a personal PC.
@@ -35,7 +40,9 @@ Non-interactive form for work machines:
 CHEZMOI_IS_PERSONAL_PC=false \
 GIT_NAME="Your Name" \
 GIT_EMAIL="you@company.com" \
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply git@github.com:shsw228/dotfiles.git
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
+  --source="$HOME/Developer/ghq/global/github.com/shsw228/dotfiles" \
+  git@github.com:shsw228/dotfiles.git
 ```
 
 ### 3. Verify
