@@ -7,9 +7,8 @@ tell application "System Events"
     make new login item at end with properties {name:"Raycast", path:"/Applications/Raycast.app", hidden:false}
   end if
 
-  if not (exists login item "Yashiki") then
-    make new login item at end with properties {name:"Yashiki", path:"/Applications/Yashiki.app", hidden:true}
-  end if
+  -- Yashiki の自動起動は手動で管理する（System Settings の Open at Login に
+  -- 各自で追加）。dotfiles では作成も削除もしない。
 
   -- AeroSpace は廃止済みなので login item から除去
   if (exists login item "AeroSpace") then
@@ -17,6 +16,13 @@ tell application "System Events"
   end if
 end tell
 APPLESCRIPT
+
+# Yashiki の自動起動は廃止。過去に作成した LaunchAgent が残っていれば除去する（冪等）。
+yashiki_plist="$HOME/Library/LaunchAgents/com.shsw228.yashiki-autostart.plist"
+if [ -f "$yashiki_plist" ]; then
+  launchctl bootout "gui/$(id -u)/com.shsw228.yashiki-autostart" 2>/dev/null || true
+  rm -f "$yashiki_plist"
+fi
 
 # sketchybar は formula なので brew services で常駐させる
 if command -v brew >/dev/null 2>&1; then

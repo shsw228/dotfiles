@@ -17,8 +17,8 @@ yashiki layout-cmd --layout tatami set-main-ratio 0.6
 ##### カーソル / フォーカス挙動 #####
 # 旧 on-focus-changed の "move-mouse window-lazy-center" 相当
 yashiki set-cursor-warp on-focus-change
-# マウスホバーでフォーカス追従 (100ms 遅延で誤入力を防ぐ)
-yashiki set-auto-raise enabled --delay 100
+# マウスホバーでのフォーカス追従は無効化（カーソル位置で勝手にアクティブにしない）
+yashiki set-auto-raise disabled
 
 ##### メニューバー #####
 # sketchybar 側で workspace 表示するので yashiki 内蔵バーは無効
