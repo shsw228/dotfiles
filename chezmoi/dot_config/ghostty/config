@@ -3,7 +3,8 @@ background = #000000
 background-opacity = 0.0
 background-blur = macos-glass-regular
 unfocused-split-opacity = 0.6
-font-family = "Monaspace Neon NF"
+font-family = "Moralerspace Neon"
+font-family = "Symbols Nerd Font Mono"
 font-feature = -dlig
 font-size = 20
 font-style-bold = false
@@ -28,7 +29,7 @@ window-step-resize = true
 
 quick-terminal-size = 50%,50%
 quick-terminal-screen = "main"
-quick-terminal-position = "top"
+quick-terminal-position = "bottom"
 quick-terminal-animation-duration = 0.05
 quick-terminal-autohide = false
 keybind = "global:ctrl+shift+space=toggle_quick_terminal"
