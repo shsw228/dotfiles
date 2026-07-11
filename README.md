@@ -32,25 +32,18 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
   https://github.com/shsw228/dotfiles.git
 ```
 
-### 2. Enable the 1Password SSH agent
+### 2. Enable the 1Password SSH agent (when prompted)
 
-1Password is installed by the Brewfile in step 1 (no `op` CLI needed — the desktop app provides the agent). Then:
+Near the end of `chezmoi apply`, a finalize step pauses with a spinner and asks you to:
 
-1. Open 1Password, sign in, and unlock it
+1. Open 1Password (installed by the Brewfile — no `op` CLI needed), sign in, and unlock it
 2. Settings → Developer → enable **Use the SSH agent**
 
-`~/.ssh/config` (already placed by chezmoi) points `IdentityAgent` at the app's socket, so the SSH keys in your vault become usable with no key files on disk.
+As soon as the agent is reachable, the step automatically switches the dotfiles remote from HTTPS to SSH (`git@github.com:…`) so future pull/push go through the agent, then `chezmoi apply` finishes. `~/.ssh/config` (placed by chezmoi) already points `IdentityAgent` at the app socket, so keys stay in your vault — none on disk.
 
-### 3. Switch the dotfiles remote to SSH
+On non-interactive runs (CI, no TTY) this step is skipped, and it times out after ~5 minutes if left unattended.
 
-The initial clone used HTTPS. Once the agent is up, switch the remote to SSH so future pull/push go through the 1Password agent:
-
-```sh
-git -C "$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
-  remote set-url origin git@github.com:shsw228/dotfiles.git
-```
-
-### 4. Verify
+### 3. Verify
 
 ```sh
 chezmoi source-path
