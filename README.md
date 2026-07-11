@@ -8,15 +8,21 @@ macOS dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 
 ### 1. Prepare 1Password and SSH
 
-1. Install [1Password](https://apps.apple.com/app/1password-7-password-manager/id1333542190)
-2. Enable **SSH Agent** and **CLI** in 1Password Settings → Developer
-3. Run the bootstrap script to pull public keys from 1Password
+1. Install [1Password](https://1password.com/), sign in, and unlock it
+2. Settings → Developer → enable **Use the SSH agent**
+3. Write a minimal `~/.ssh/config` so the SSH clone in step 2 can reach GitHub through the 1Password agent. No `op` CLI is needed — the agent offers the keys.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/shsw228/dotfiles/main/setup-ssh.sh | sh
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+cat > ~/.ssh/config <<'EOF'
+Host github.com
+    User git
+    IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+EOF
+chmod 600 ~/.ssh/config
 ```
 
-This places `~/.ssh/github_personal.pub`, `~/.ssh/github_work.pub`, and a minimal `~/.ssh/config` good enough to clone the dotfiles repo over SSH. The full `~/.ssh/config` is managed by chezmoi and will overwrite this bootstrap on `chezmoi apply`.
+`chezmoi apply` (step 2) overwrites `~/.ssh/config` with the persona-specific config (personal key on personal PCs, work key on work PCs).
 
 ### 2. Bootstrap with chezmoi
 
