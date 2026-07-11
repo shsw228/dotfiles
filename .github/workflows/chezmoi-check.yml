@@ -108,6 +108,7 @@ jobs:
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_50_set-ssh-auth-sock.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_60_finalize-ssh-remote.sh.tmpl"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zprofile"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshenv"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshrc"
