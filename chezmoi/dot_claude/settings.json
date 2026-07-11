@@ -21,7 +21,12 @@
       }
     }
   },
+  "language": "Japanese",
   "effortLevel": "high",
-  "skipAutoPermissionPrompt": true,
-  "tui": "fullscreen"
+  "tui": "fullscreen",
+  "theme": "dark-ansi",
+  "editorMode": "normal",
+  "verbose": true,
+  "preferredNotifChannel": "ghostty",
+  "skipAutoPermissionPrompt": true
 }
