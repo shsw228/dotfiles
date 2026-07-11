@@ -133,7 +133,6 @@ yashiki rule-add --subrole AXUnknown ignore
 
 # 補助系アプリは tile 対象から外す
 yashiki rule-add --app-id pro.betterdisplay.BetterDisplay ignore
-yashiki rule-add --app-id lo.cafe.NotchNook ignore
 yashiki rule-add --app-id com.pointum.hazeover ignore
 yashiki rule-add --app-name borders ignore
 yashiki rule-add --app-name sketchybar ignore
