@@ -6,33 +6,14 @@ macOS dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 
 ## Fresh Machine Setup
 
-### 1. Prepare 1Password and SSH
+### 1. Bootstrap with chezmoi (HTTPS)
 
-1. Install [1Password](https://1password.com/), sign in, and unlock it
-2. Settings → Developer → enable **Use the SSH agent**
-3. Write a minimal `~/.ssh/config` so the SSH clone in step 2 can reach GitHub through the 1Password agent. No `op` CLI is needed — the agent offers the keys.
-
-```sh
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-cat > ~/.ssh/config <<'EOF'
-Host github.com
-    User git
-    IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-EOF
-chmod 600 ~/.ssh/config
-```
-
-`chezmoi apply` (step 2) overwrites `~/.ssh/config` with the persona-specific config (personal key on personal PCs, work key on work PCs).
-
-### 2. Bootstrap with chezmoi
-
-`--source` を指定して、リポジトリを最初から ghq レイアウトのパスに直接クローンする
-（`~/.local/share/chezmoi` への二重クローンは発生しない）。
+The repo is public, so the initial clone needs no SSH key or 1Password. Clone over HTTPS; `chezmoi apply` then installs Homebrew, the Brewfile (including 1Password), and all config.
 
 ```sh
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
   --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
-  git@github.com:shsw228/dotfiles.git
+  https://github.com/shsw228/dotfiles.git
 ```
 
 During `chezmoi init`, you will be asked whether this is a personal PC.
@@ -48,8 +29,19 @@ GIT_NAME="Your Name" \
 GIT_EMAIL="you@company.com" \
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
   --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
-  git@github.com:shsw228/dotfiles.git
+  https://github.com/shsw228/dotfiles.git
 ```
+
+### 2. Enable the 1Password SSH agent (when prompted)
+
+Near the end of `chezmoi apply`, a finalize step pauses with a spinner and asks you to:
+
+1. Open 1Password (installed by the Brewfile — no `op` CLI needed), sign in, and unlock it
+2. Settings → Developer → enable **Use the SSH agent**
+
+As soon as the agent is reachable, the step automatically switches the dotfiles remote from HTTPS to SSH (`git@github.com:…`) so future pull/push go through the agent, then `chezmoi apply` finishes. `~/.ssh/config` (placed by chezmoi) already points `IdentityAgent` at the app socket, so keys stay in your vault — none on disk.
+
+On non-interactive runs (CI, no TTY) this step is skipped, and it times out after ~5 minutes if left unattended.
 
 ### 3. Verify
 

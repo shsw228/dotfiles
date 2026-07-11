@@ -1,0 +1,42 @@
+#!/bin/sh
+# 初回 clone は HTTPS。1Password の SSH エージェントが使えるようになったら
+# dotfiles の origin を SSH へ張り替え、以降の pull/push を agent 経由にする。
+# 既に SSH origin なら即終了（べき等）。CI / 非TTY では待機しない。
+set -eu
+
+[ "${CHEZMOI_CI:-0}" = "1" ] && exit 0
+[ -t 1 ] || exit 0
+
+repo="$(dirname "{{ .chezmoi.sourceDir }}")"
+
+# 既に SSH origin なら何もしない
+case "$(git -C "$repo" remote get-url origin 2>/dev/null || true)" in
+  git@github.com:* | ssh://git@github.com/*) exit 0 ;;
+esac
+
+sock="$HOME/.1password-agent.sock"
+
+# エージェントがまだ使えなければ、有効化を促してスピナーで待つ
+if ! env SSH_AUTH_SOCK="$sock" ssh-add -l >/dev/null 2>&1; then
+  printf '\n1Password にサインインし、設定 → 開発者 → 「SSH エージェントを使用」を有効化してください\n'
+  frames="⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏"
+  i=0
+  max=3000 # 約5分 (0.1s * 3000) でタイムアウト
+  while :; do
+    if [ $((i % 10)) -eq 0 ] && env SSH_AUTH_SOCK="$sock" ssh-add -l >/dev/null 2>&1; then
+      break
+    fi
+    if [ "$i" -ge "$max" ]; then
+      printf '\r\033[33m⚠\033[0m タイムアウト: 後で `git -C %s remote set-url origin git@github.com:shsw228/dotfiles.git` を手動実行してください\n' "$repo"
+      exit 0
+    fi
+    f=$(set -- $frames; eval "printf %s \"\${$((i % 10 + 1))}\"")
+    printf '\r%s SSH エージェントを待機中…' "$f"
+    i=$((i + 1))
+    sleep 0.1
+  done
+  printf '\r\033[32m✔\033[0m SSH エージェントを検出しました        \n'
+fi
+
+git -C "$repo" remote set-url origin git@github.com:shsw228/dotfiles.git
+echo "dotfiles の origin を SSH に切り替えました"
