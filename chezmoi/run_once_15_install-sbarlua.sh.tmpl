@@ -11,6 +11,22 @@ if [ -f "$target" ]; then
   exit 0
 fi
 
+# 初回 apply 中は PATH に Homebrew の bin が入っていないことがあるため、
+# brew（直前の run_onchange_10 で入れた lua を含む）を PATH に足しておく。
+if command -v brew >/dev/null 2>&1; then
+  brew_prefix="$(brew --prefix)"
+elif [ -x /opt/homebrew/bin/brew ]; then
+  brew_prefix="$(/opt/homebrew/bin/brew --prefix)"
+elif [ -x /usr/local/bin/brew ]; then
+  brew_prefix="$(/usr/local/bin/brew --prefix)"
+else
+  brew_prefix=""
+fi
+if [ -n "$brew_prefix" ]; then
+  PATH="$brew_prefix/bin:$PATH"
+  export PATH
+fi
+
 if ! command -v lua >/dev/null 2>&1; then
   echo "lua が見つからないため SbarLua の導入をスキップします" >&2
   exit 0
