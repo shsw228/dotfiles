@@ -6,33 +6,14 @@ macOS dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 
 ## Fresh Machine Setup
 
-### 1. Prepare 1Password and SSH
+### 1. Bootstrap with chezmoi (HTTPS)
 
-1. Install [1Password](https://1password.com/), sign in, and unlock it
-2. Settings → Developer → enable **Use the SSH agent**
-3. Write a minimal `~/.ssh/config` so the SSH clone in step 2 can reach GitHub through the 1Password agent. No `op` CLI is needed — the agent offers the keys.
-
-```sh
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-cat > ~/.ssh/config <<'EOF'
-Host github.com
-    User git
-    IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-EOF
-chmod 600 ~/.ssh/config
-```
-
-`chezmoi apply` (step 2) overwrites `~/.ssh/config` with the persona-specific config (personal key on personal PCs, work key on work PCs).
-
-### 2. Bootstrap with chezmoi
-
-`--source` を指定して、リポジトリを最初から ghq レイアウトのパスに直接クローンする
-（`~/.local/share/chezmoi` への二重クローンは発生しない）。
+The repo is public, so the initial clone needs no SSH key or 1Password. Clone over HTTPS; `chezmoi apply` then installs Homebrew, the Brewfile (including 1Password), and all config.
 
 ```sh
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
   --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
-  git@github.com:shsw228/dotfiles.git
+  https://github.com/shsw228/dotfiles.git
 ```
 
 During `chezmoi init`, you will be asked whether this is a personal PC.
@@ -48,10 +29,28 @@ GIT_NAME="Your Name" \
 GIT_EMAIL="you@company.com" \
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
   --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
-  git@github.com:shsw228/dotfiles.git
+  https://github.com/shsw228/dotfiles.git
 ```
 
-### 3. Verify
+### 2. Enable the 1Password SSH agent
+
+1Password is installed by the Brewfile in step 1 (no `op` CLI needed — the desktop app provides the agent). Then:
+
+1. Open 1Password, sign in, and unlock it
+2. Settings → Developer → enable **Use the SSH agent**
+
+`~/.ssh/config` (already placed by chezmoi) points `IdentityAgent` at the app's socket, so the SSH keys in your vault become usable with no key files on disk.
+
+### 3. Switch the dotfiles remote to SSH
+
+The initial clone used HTTPS. Once the agent is up, switch the remote to SSH so future pull/push go through the 1Password agent:
+
+```sh
+git -C "$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
+  remote set-url origin git@github.com:shsw228/dotfiles.git
+```
+
+### 4. Verify
 
 ```sh
 chezmoi source-path
