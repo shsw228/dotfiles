@@ -8,6 +8,9 @@ defaults write NSGlobalDomain NSAutomaticDashSubstitutionEnabled -bool false
 defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false
 defaults write NSGlobalDomain AppleInterfaceStyle -string Dark
 defaults write NSGlobalDomain NSWindowResizeTime -float 0.001
+# メニューバーを自動非表示（sketchybar を主バーとして使うため）。
+# Tahoe では即時反映されず、ログアウト→ログインで work-area が menu bar 分を回収する。
+defaults write NSGlobalDomain _HIHideMenuBar -bool true
 
 defaults write com.apple.finder AppleShowAllExtensions -bool true
 defaults write com.apple.finder AppleShowAllFiles -bool true

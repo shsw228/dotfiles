@@ -1,8 +1,0 @@
-[user]
-	name = "hume"
-	email = "13506491+shsw228@users.noreply.github.com"
-
-[url "git@github.com-personal:"]
-	insteadOf = git@github.com:
-[url "ssh://git@github.com-personal/"]
-	insteadOf = ssh://git@github.com/
