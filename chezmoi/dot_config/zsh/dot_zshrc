@@ -19,11 +19,7 @@ elif command -v brew >/dev/null 2>&1; then
 fi
 
 autoload -Uz compinit
-# -i: 不安全な補完ファイルがあっても中断・プロンプトせず無視して続行する。
-# 例: Docker などの cask が置く補完ファイル(_docker 等)はアプリ同梱ファイルへの
-# symlink で、リンク先が別UID所有のため compaudit が insecure と判定する。
-# 権限ではなく所有者の問題で chmod では直せないため、-i で無視する運用とする。
-compinit -i
+compinit
 
 if command -v sheldon >/dev/null 2>&1; then
   eval "$(sheldon source)"
