@@ -7,12 +7,15 @@ tell application "System Events"
     make new login item at end with properties {name:"Raycast", path:"/Applications/Raycast.app", hidden:false}
   end if
 
-  -- Yashiki の自動起動は手動で管理する（System Settings の Open at Login に
-  -- 各自で追加）。dotfiles では作成も削除もしない。
+  -- Yashiki(タイル型WM)をログイン時に自動起動する。起動すると ~/.config/yashiki/init
+  -- が走り、最後に sketchybar を reload して bridge を繋ぎ直す。
+  if not (exists login item "Yashiki") then
+    make new login item at end with properties {name:"Yashiki", path:"/Applications/Yashiki.app", hidden:false}
+  end if
 end tell
 APPLESCRIPT
 
-# Yashiki の自動起動は廃止。過去に作成した LaunchAgent が残っていれば除去する（冪等）。
+# 旧 LaunchAgent 方式の自動起動は使わない（ログイン項目で管理）。残っていれば除去する（冪等）。
 yashiki_plist="$HOME/Library/LaunchAgents/com.shsw228.yashiki-autostart.plist"
 if [ -f "$yashiki_plist" ]; then
   launchctl bootout "gui/$(id -u)/com.shsw228.yashiki-autostart" 2>/dev/null || true
