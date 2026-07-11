@@ -40,7 +40,6 @@ brew "xcodes", link: false
 brew "yammerjp/tap/pdef"
 
 cask "1password"
-cask "1password-cli"
 cask "lihaoyun6/tap/airbattery"
 cask "alt-tab"
 cask "arto"
