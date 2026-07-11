@@ -38,7 +38,7 @@ zsh -n chezmoi/dot_config/zsh/dot_z*
   - `dot_config/` — XDG `~/.config` targets (git, zsh, nvim, ghostty, wezterm, karabiner, sheldon, starship)
   - `dot_zshrc`, `dot_zshenv`, `dot_zprofile` — thin stubs that source `~/.config/zsh/`
   - `Brewfile` / `Brewfile.personal` — Homebrew packages (common / personal-only); ignored by chezmoi via `.chezmoiignore`
-  - `run_once_*` / `run_onchange_*` — bootstrap scripts (Homebrew install, packages, macOS defaults, login items, NotchNook license)
+  - `run_once_*` / `run_onchange_*` — bootstrap scripts (Homebrew install, packages, macOS defaults, login items)
   - `.chezmoi.toml.tmpl` — config template; prompts for personal vs work PC, sets git identity
   - `remove_*` — files chezmoi will delete from `$HOME`
 
