@@ -26,6 +26,15 @@ if [ "{{ if dig "profile" "is_personal_pc" true . }}1{{ else }}0{{ end }}" = "1"
   cat "$personal_brewfile" >>"$tmp_brewfile"
 fi
 
+# chezmoi apply 時に自動で brew bundle を走らせない。
+# 反映したいときだけ明示的にオプトインする:
+#   DOTFILES_BREW=1 chezmoi apply --source="$PWD"
+# もしくは手動で:  brew bundle --file=chezmoi/Brewfile
+if [ "${DOTFILES_BREW:-0}" != "1" ]; then
+  echo "[skip] brew bundle は自動実行しません（DOTFILES_BREW=1 で有効化 / 手動: brew bundle --file=chezmoi/Brewfile）" >&2
+  exit 0
+fi
+
 # Homebrew 5.1.15+ では third-party tap に brew trust が必要なので、
 # bundle 前に Brewfile 内の non-official tap を tap & trust しておく。
 if "$brew_cmd" trust --help >/dev/null 2>&1; then
