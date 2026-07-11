@@ -1,7 +1,7 @@
 {{- /* sourceDir を ghq レイアウト上の固定パスに確定する（ghq 非依存）。 */ -}}
 {{- /* 初回は `chezmoi init --source=<このパス>` で直接クローンする前提。 */ -}}
 {{- if not (env "CHEZMOI_CI") }}
-sourceDir = "{{ .chezmoi.homeDir }}/Developer/ghq/global/github.com/shsw228/dotfiles"
+sourceDir = "{{ .chezmoi.homeDir }}/Developer/ghq/github.com/shsw228/dotfiles"
 {{ end -}}
 
 {{- $isPersonalPC := false -}}
