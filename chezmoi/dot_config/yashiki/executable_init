@@ -138,3 +138,14 @@ yashiki rule-add --app-name borders ignore
 yashiki rule-add --app-name sketchybar ignore
 yashiki rule-add --app-id com.raycast.macos ignore
 yashiki rule-add --app-id com.knollsoft.Hookshot ignore
+
+##### sketchybar 再初期化 #####
+# yashiki 起動が完了したこの時点で sketchybar を reload する。
+# sketchybar の bridge (yashiki_bridge.sh) と list-outputs は起動時に
+# yashiki が動いている前提で、起動順の競合で sketchybar が先に上がると
+# workspace 表示が壊れる。ここで reload し live な yashiki へ繋ぎ直す。
+# sketchybar 未起動時は brew services が後から起動し、その時点で yashiki は
+# 既に上がっているため問題ない（reload 失敗は無視）。
+if [ -x /opt/homebrew/bin/sketchybar ]; then
+  /opt/homebrew/bin/sketchybar --reload >/dev/null 2>&1 || true
+fi
