@@ -2,18 +2,7 @@
 Host *
     IdentityAgent ~/.1password-agent.sock
 
-Host github.com-personal
-    HostName github.com
-    User git
-    IdentitiesOnly yes
-    IdentityFile ~/.ssh/github_personal.pub
-
-Host github.com-work
-    HostName github.com
-    User git
-    IdentitiesOnly yes
-    IdentityFile ~/.ssh/github_work.pub
-
+# 個人用/会社用 PC で使う鍵を1つだけ切り替える（秘密鍵は 1Password agent が保持）。
 Host github.com
     User git
     IdentitiesOnly yes

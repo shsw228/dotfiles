@@ -62,8 +62,7 @@ chezmoi status
 - place app config such as `~/.config/git/config`, `~/.config/nvim`, `~/.config/wezterm`, and `~/.config/ghostty`
 - create `~/.1password-agent.sock` symlink (avoids space-in-path issue with the 1Password socket)
 - register `SSH_AUTH_SOCK` in launchd via `~/Library/LaunchAgents/com.shsw228.ssh-auth-sock.plist` so GUI clients can use the 1Password agent
-- deploy `~/.ssh/config` with `github.com` (defaults to work key on work PCs / personal key on personal PCs) and `github.com-personal` / `github.com-work` host aliases
-- rewrite remote URLs for repos under `shsw228/` to use the `github.com-personal` alias via `[url ... insteadOf]`
+- deploy `~/.ssh/config` so `github.com` uses the persona SSH key via the 1Password agent (personal key on personal PCs, work key on work PCs)
 
 ## Local-Only Configuration
 
