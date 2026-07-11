@@ -40,6 +40,10 @@ casks="$("$brew_cmd" list --cask 2>/dev/null || true)"
       for dir in "/Applications" "$HOME/Applications"; do
         target="$dir/$app"
         [ -e "$target" ] || continue
-        xattr -dr com.apple.quarantine "$target" 2>/dev/null || true
+        # 検疫属性が付いている場合のみ除去する。一度起動・承認済みのアプリは
+        # com.apple.macl / com.apple.provenance が付き macOS の App Management
+        # 保護対象になるため、触ると Permission denied になる（かつ除去は不要）。
+        xattr "$target" 2>/dev/null | grep -qx 'com.apple.quarantine' || continue
+        xattr -d com.apple.quarantine "$target" 2>/dev/null || true
       done
     done
