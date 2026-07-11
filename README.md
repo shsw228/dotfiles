@@ -8,20 +8,31 @@ macOS dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 
 ### 1. Prepare 1Password and SSH
 
-1. Install [1Password](https://apps.apple.com/app/1password-7-password-manager/id1333542190)
-2. Enable **SSH Agent** and **CLI** in 1Password Settings → Developer
-3. Run the bootstrap script to pull public keys from 1Password
+1. Install [1Password](https://1password.com/), sign in, and unlock it
+2. Settings → Developer → enable **Use the SSH agent**
+3. Write a minimal `~/.ssh/config` so the SSH clone in step 2 can reach GitHub through the 1Password agent. No `op` CLI is needed — the agent offers the keys.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/shsw228/dotfiles/main/setup-ssh.sh | sh
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+cat > ~/.ssh/config <<'EOF'
+Host github.com
+    User git
+    IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+EOF
+chmod 600 ~/.ssh/config
 ```
 
-This places `~/.ssh/github_personal.pub`, `~/.ssh/github_work.pub`, and a minimal `~/.ssh/config` good enough to clone the dotfiles repo over SSH. The full `~/.ssh/config` is managed by chezmoi and will overwrite this bootstrap on `chezmoi apply`.
+`chezmoi apply` (step 2) overwrites `~/.ssh/config` with the persona-specific config (personal key on personal PCs, work key on work PCs).
 
 ### 2. Bootstrap with chezmoi
 
+`--source` を指定して、リポジトリを最初から ghq レイアウトのパスに直接クローンする
+（`~/.local/share/chezmoi` への二重クローンは発生しない）。
+
 ```sh
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply git@github.com:shsw228/dotfiles.git
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
+  --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
+  git@github.com:shsw228/dotfiles.git
 ```
 
 During `chezmoi init`, you will be asked whether this is a personal PC.
@@ -35,7 +46,9 @@ Non-interactive form for work machines:
 CHEZMOI_IS_PERSONAL_PC=false \
 GIT_NAME="Your Name" \
 GIT_EMAIL="you@company.com" \
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply git@github.com:shsw228/dotfiles.git
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
+  --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
+  git@github.com:shsw228/dotfiles.git
 ```
 
 ### 3. Verify
@@ -50,16 +63,12 @@ chezmoi status
 - install Homebrew itself if `brew` is not present yet
 - install packages from [`chezmoi/Brewfile`](./chezmoi/Brewfile)
 - apply macOS preferences from `run_onchange_20_apply-macos-defaults.sh.tmpl`
-- configure login items for Raycast and AeroSpace
-- bootstrap the NotchNook license from 1Password when available
+- configure the Raycast login item
 - place shell entrypoints such as `.zshenv`, `.zprofile`, and `.zshrc`, with their main contents under `~/.config/zsh/`
-- place app config such as `~/.config/git/config`, `~/.config/nvim`, `~/.config/wezterm`, `~/.config/ghostty`, and `~/.config/aerospace/aerospace.toml`
+- place app config such as `~/.config/git/config`, `~/.config/nvim`, `~/.config/wezterm`, and `~/.config/ghostty`
 - create `~/.1password-agent.sock` symlink (avoids space-in-path issue with the 1Password socket)
 - register `SSH_AUTH_SOCK` in launchd via `~/Library/LaunchAgents/com.shsw228.ssh-auth-sock.plist` so GUI clients can use the 1Password agent
-- deploy `~/.ssh/config` with `github.com` (defaults to work key on work PCs / personal key on personal PCs) and `github.com-personal` / `github.com-work` host aliases
-- rewrite remote URLs for repos under `shsw228/` to use the `github.com-personal` alias via `[url ... insteadOf]`
-
-For NotchNook, sign in to 1Password first, then run `chezmoi apply` again if the license has not been injected yet.
+- deploy `~/.ssh/config` so `github.com` uses the persona SSH key via the 1Password agent (personal key on personal PCs, work key on work PCs)
 
 ## Local-Only Configuration
 

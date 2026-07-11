@@ -104,11 +104,9 @@ jobs:
       - name: Shell syntax checks
         run: |
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_00_install-homebrew.sh.tmpl"
-          sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_15_setup-ghq-source.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_10_install-homebrew-packages.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
-          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_40_configure-notchnook-license.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_50_set-ssh-auth-sock.sh.tmpl"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zprofile"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshenv"

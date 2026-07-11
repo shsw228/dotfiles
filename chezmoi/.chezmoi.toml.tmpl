@@ -1,15 +1,8 @@
-{{- /* ghq が利用可能なら sourceDir を ghq 配下に固定する */ -}}
-{{- /* 初回は git config 未展開で ghq root がデフォルト値を返すため、 */ -}}
-{{- /* GHQ_ROOT 環境変数があればそちらを優先する */ -}}
-{{- if not (env "CHEZMOI_CI") -}}
-{{-   $ghqRoot := env "GHQ_ROOT" -}}
-{{-   if and (eq $ghqRoot "") (lookPath "ghq") -}}
-{{-     $ghqRoot = output "ghq" "root" | trim -}}
-{{-   end -}}
-{{-   if ne $ghqRoot "" }}
-sourceDir = "{{ $ghqRoot }}/github.com/shsw228/dotfiles"
-{{   end -}}
-{{- end -}}
+{{- /* sourceDir を ghq レイアウト上の固定パスに確定する（ghq 非依存）。 */ -}}
+{{- /* 初回は `chezmoi init --source=<このパス>` で直接クローンする前提。 */ -}}
+{{- if not (env "CHEZMOI_CI") }}
+sourceDir = "{{ .chezmoi.homeDir }}/Developer/ghq/github.com/shsw228/dotfiles"
+{{ end -}}
 
 {{- $isPersonalPC := false -}}
 {{- if hasKey . "is_personal_pc" -}}
