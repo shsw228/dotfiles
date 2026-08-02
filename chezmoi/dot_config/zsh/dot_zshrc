@@ -18,6 +18,20 @@ elif command -v brew >/dev/null 2>&1; then
   eval "$(brew shellenv)"
 fi
 
+# ターミナル起動時に herdr へ入る。
+# herdr はペイン内のシェルに HERDR_ENV を渡すので、それを入れ子起動の防止に使う。
+# 一時的に無効化したいときは HERDR_AUTOSTART=0 を設定する。
+if [[ -o interactive ]] \
+  && [[ -z "$HERDR_ENV" ]] \
+  && [[ "${HERDR_AUTOSTART:-1}" != "0" ]] \
+  && [[ -z "$VIMRUNTIME$NVIM$INSIDE_EMACS" ]] \
+  && [[ "$TERM_PROGRAM" != "vscode" ]] \
+  && [[ "$TERM" != "dumb" && "$TERM" != "linux" ]] \
+  && [[ -t 0 && -t 1 ]] \
+  && command -v herdr >/dev/null 2>&1; then
+  exec herdr
+fi
+
 autoload -Uz compinit
 compinit
 
