@@ -14,7 +14,7 @@
 # ■ 何をするか
 #   1. yashiki subscribe --filter display でイベントを購読
 #   2. 最後のイベントから QUIET_TICKS 秒静かになるまでデバウンス
-#   3. yashiki の認識 (list-outputs) と OS の実体 (NSScreen) を突き合わせる
+#   3. yashiki が認識しているディスプレイ ID の集合と、OS の実体を突き合わせる
 #      - 一致   -> キャッシュは正しい。set-outer-gap + retile で組み直す（軽い）
 #      - 不一致 -> キャッシュが腐っていて retile では直らない。daemon を再起動する（重い）
 #   4. sketchybar を --reload する
@@ -22,11 +22,16 @@
 #      依存して組んだ item 構成 (notch_spacer 等) は作り直さない。--reload は
 #      bar_manager_destroy + init + exec_config_file なので item ごと作り直せる。
 #
-#   旧 relayout_on_boot.sh (NSScreen の visibleFrame インセットを監視) は前提が誤りだった。
-#   yashiki は CGDisplayBounds しか見ておらず visibleFrame を一切参照しないため、
-#   メニューバーの表示・非表示は yashiki の矩形を 1px も変えない。監視対象を
-#   「yashiki の認識と OS の実体の突き合わせ」に置き換えたのがこのスクリプト。
+# ■ 突き合わせに解像度を使わないこと
+#   list-outputs の矩形はメニューバーの表示状態で変わる。実測:
+#     メニューバー非表示: 2: DELL U4025QW [2560x1080 @ (0,0)]
+#     メニューバー表示  : 2: DELL U4025QW [2560x1050 @ (0,30)]
+#   一方 NSScreen.frame は常に 2560x1080 を返す。解像度で比較すると
+#   メニューバーが出ているだけで「不一致」と誤判定し、yashiki を無駄に再起動する。
+#   構成が変わったかどうかは ID の集合だけで判定する。解像度・配置の変更は
+#   display イベント自体が拾うので、判定材料にする必要がない。
 #
+#   旧 relayout_on_boot.sh (NSScreen の visibleFrame インセットを監視) は前提が誤りだった。
 #   旧 sketchybar 側 display_watcher.sh の役割もここへ統合した。両方が同じイベントで
 #   独立に動くと sketchybar が二重に作り直されるため、直列化している。
 
@@ -42,67 +47,87 @@ OUTER_GAP="48 12 12 12"
 # デバウンス: 1 秒 tick で QUIET_TICKS 回続けて無イベントなら確定とみなす
 QUIET_TICKS=3
 # ログイン直後は構成が動いている最中なので、初回判定までこれだけ待つ
-BOOT_DELAY=3
+BOOT_DELAY=5
 # 再起動ループ防止: 前回の再起動からこの秒数以内は再起動せず retile で妥協する
-RESTART_COOLDOWN=60
+RESTART_COOLDOWN=120
+# 購読が失敗し続けたときのバックオフ上限（秒）
+BACKOFF_MAX=60
 
-LOG="${TMPDIR:-/tmp}/yashiki_display_watcher.log"
-STAMP="${TMPDIR:-/tmp}/yashiki_display_watcher.restart"
+RUNDIR="${TMPDIR:-/tmp}"
+LOG="$RUNDIR/yashiki_display_watcher.log"
+STAMP="$RUNDIR/yashiki_display_watcher.restart"
+LOCK="$RUNDIR/yashiki_display_watcher.pid"
+
 log() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" >>"$LOG" 2>/dev/null || true; }
-: >"$LOG" 2>/dev/null || true
 
-SELF_PID=$$
-# 多重起動防止: yashiki 再起動で init が新しい watcher を spawn するため、
-# 古い自分を必ず畳む。再起動を仕掛けた側が kill されても困らないよう、
-# restart_yashiki() は切り離したプロセスで実行する。
-for pid in $(pgrep -f 'yashiki/display_watcher\.sh$' 2>/dev/null); do
-  [ "$pid" = "$SELF_PID" ] && continue
-  kill "$pid" 2>/dev/null
-done
+# 多重起動防止。pgrep はディレクトリサービスが壊れていると
+# "Cannot get process list" で無言失敗するため使わない（実際にそれで
+# ウォッチャーが多重起動した）。kill -0 で生存確認できる PID ファイルを使う。
+if [ -f "$LOCK" ]; then
+  old=$(cat "$LOCK" 2>/dev/null)
+  case "$old" in
+    ''|*[!0-9]*) ;;
+    *)
+      if [ "$old" != "$$" ] && kill -0 "$old" 2>/dev/null; then
+        kill "$old" 2>/dev/null
+        sleep 1
+      fi
+      ;;
+  esac
+fi
+printf '%s\n' "$$" >"$LOCK" 2>/dev/null || true
 
-log "start pid=$SELF_PID"
+# ログは追記しつつ肥大化を防ぐ（購読失敗が続くと行数が伸びるため）
+if [ -f "$LOG" ] && [ "$(wc -l <"$LOG" 2>/dev/null || echo 0)" -gt 500 ]; then
+  : >"$LOG" 2>/dev/null || true
+fi
 
-# OS 実体の署名: "<displayID>:<幅>x<高さ>" を ID 順に並べたもの
-os_signature() {
+SUB_PID=""
+cleanup() {
+  [ -n "$SUB_PID" ] && kill "$SUB_PID" 2>/dev/null
+  [ -f "$LOCK" ] && [ "$(cat "$LOCK" 2>/dev/null)" = "$$" ] && rm -f "$LOCK"
+  exit 0
+}
+trap cleanup EXIT INT TERM
+
+log "start pid=$$"
+
+# OS 実体のディスプレイ ID 集合
+os_ids() {
   /usr/bin/osascript -l JavaScript <<'JXA' 2>/dev/null
 ObjC.import('AppKit');
 var out = [];
 var screens = $.NSScreen.screens;
 for (var i = 0; i < screens.count; i++) {
   var s = screens.objectAtIndex(i);
-  var num = s.deviceDescription.objectForKey('NSScreenNumber');
-  var f = s.frame;
-  out.push(num.intValue + ':' + Math.round(f.size.width) + 'x' + Math.round(f.size.height));
+  out.push(s.deviceDescription.objectForKey('NSScreenNumber').intValue);
 }
-out.sort().join(' ');
+out.map(Number).sort(function (a, b) { return a - b; }).join(' ');
 JXA
 }
 
-# yashiki 認識の署名: list-outputs の "2: NAME [2560x1080 @ (0,0)] (main) *" を同形式へ
-yashiki_signature() {
-  "$YASHIKI" list-outputs 2>/dev/null | awk '
-    /^[0-9]+:/ {
-      id = $1; sub(/:$/, "", id)
-      if (match($0, /\[[0-9]+x[0-9]+ /)) {
-        print id ":" substr($0, RSTART + 1, RLENGTH - 2)
-      }
-    }' | LC_ALL=C sort | tr '\n' ' ' | sed 's/ *$//'
+# yashiki が認識しているディスプレイ ID 集合
+# list-outputs: "2: DELL U4025QW [2560x1050 @ (0,30)] (main) *"
+yashiki_ids() {
+  "$YASHIKI" list-outputs 2>/dev/null \
+    | awk '/^[0-9]+:/ { id = $1; sub(/:$/, "", id); print id }' \
+    | sort -n | tr '\n' ' ' | sed 's/ *$//'
 }
 
 reload_sketchybar() {
   [ -x "$SKETCHYBAR" ] || return 0
-  "$SKETCHYBAR" --reload >/dev/null 2>&1 || true
+  "$SKETCHYBAR" --reload >/dev/null 2>&1 </dev/null || true
 }
 
-# 再起動は切り離して実行する。この watcher は新 init が spawn する watcher に
-# kill されるので、インラインで実行すると quit と open の間で死ぬ危険がある。
+# 再起動は切り離して実行する。このウォッチャーは新 init が spawn する
+# ウォッチャーに kill されるので、インラインだと quit と open の間で死ぬ危険がある。
 restart_yashiki() {
   date +%s >"$STAMP" 2>/dev/null || true
   nohup /bin/sh -c "
     '$YASHIKI' quit >/dev/null 2>&1 || true
     sleep 1
     /usr/bin/open -a Yashiki >/dev/null 2>&1 || true
-  " >/dev/null 2>&1 &
+  " >/dev/null 2>&1 </dev/null &
 }
 
 restart_allowed() {
@@ -113,55 +138,78 @@ restart_allowed() {
   [ $(( $(date +%s) - last )) -ge "$RESTART_COOLDOWN" ]
 }
 
-# $1: "boot" なら sketchybar reload を省く（init 側が直後に --reload するため）
+# $1: フェーズ名。"boot" のときは sketchybar reload と daemon 再起動を行わない。
+#     ログイン直後は構成が確定しておらず、ここで再起動すると
+#     「再起動 -> init -> 新ウォッチャー -> また不一致」のループを招く。
+#     本当に構成がズレていれば直後に CGDisplay 再構成イベントが飛ぶので、
+#     event フェーズで拾えばよい。
 settle() {
-  local phase os_sig ya_sig
+  local phase os_list ya_list
   phase="$1"
-  os_sig=$(os_signature)
-  ya_sig=$(yashiki_signature)
+  os_list=$(os_ids)
+  ya_list=$(yashiki_ids)
 
-  if [ -z "$os_sig" ] || [ -z "$ya_sig" ]; then
-    log "$phase: 署名取得に失敗 (os=[$os_sig] yashiki=[$ya_sig]) -> 何もしない"
+  if [ -z "$os_list" ] || [ -z "$ya_list" ]; then
+    log "$phase: ID 取得に失敗 (os=[$os_list] yashiki=[$ya_list]) -> 何もしない"
     return
   fi
 
-  if [ "$os_sig" = "$ya_sig" ]; then
-    log "$phase: 一致 [$os_sig] -> set-outer-gap + retile"
+  if [ "$os_list" = "$ya_list" ]; then
+    log "$phase: 一致 [$os_list] -> set-outer-gap + retile"
     # shellcheck disable=SC2086
-    "$YASHIKI" set-outer-gap $OUTER_GAP >/dev/null 2>&1 || true
-    "$YASHIKI" retile >/dev/null 2>&1 || true
+    "$YASHIKI" set-outer-gap $OUTER_GAP >/dev/null 2>&1 </dev/null || true
+    "$YASHIKI" retile >/dev/null 2>&1 </dev/null || true
     [ "$phase" = "boot" ] || reload_sketchybar
+    return
+  fi
+
+  if [ "$phase" = "boot" ]; then
+    log "boot: 不一致 yashiki=[$ya_list] os=[$os_list] -> retile のみ (boot では再起動しない)"
+    "$YASHIKI" retile >/dev/null 2>&1 </dev/null || true
     return
   fi
 
   if restart_allowed; then
-    log "$phase: 不一致 yashiki=[$ya_sig] os=[$os_sig] -> yashiki 再起動"
+    log "$phase: 不一致 yashiki=[$ya_list] os=[$os_list] -> yashiki 再起動"
     restart_yashiki
   else
-    # 再起動直後にまだ食い違う場合。ループを避けて retile で妥協する。
-    log "$phase: 不一致だが cooldown 中 yashiki=[$ya_sig] os=[$os_sig] -> retile のみ"
-    "$YASHIKI" retile >/dev/null 2>&1 || true
-    [ "$phase" = "boot" ] || reload_sketchybar
+    log "$phase: 不一致だが cooldown 中 yashiki=[$ya_list] os=[$os_list] -> retile のみ"
+    "$YASHIKI" retile >/dev/null 2>&1 </dev/null || true
+    reload_sketchybar
   fi
 }
 
 sleep "$BOOT_DELAY"
-settle boot
+settle boot </dev/null
 
-while true; do
+# 購読を1回張って、切れるまで読み続ける。戻り値は読めたイベント数。
+# FIFO 経由で子プロセスの PID を握り、抜けるときに必ず kill する。
+# （プロセス置換 < <(...) だと子を掴めず、再購読のたびに subscribe が
+#   リークして数十プロセス積み上がった）
+subscribe_once() {
+  local fifo events pending quiet line rc
+  fifo="$RUNDIR/yashiki_dw_fifo.$$"
+  rm -f "$fifo"
+  mkfifo "$fifo" 2>/dev/null || return 1
+
+  "$YASHIKI" subscribe --filter display >"$fifo" 2>/dev/null </dev/null &
+  SUB_PID=$!
+  exec 3<"$fifo"
+  rm -f "$fifo"
+
+  events=0
   pending=0
   quiet=0
 
   while true; do
-    IFS= read -r -t 1 line
+    IFS= read -r -t 1 line <&3
     rc=$?
 
     if [ "$rc" -eq 0 ]; then
       [ -z "$line" ] && continue
-      evtype=$(printf '%s' "$line" | jq -r '.type' 2>/dev/null)
-      case "$evtype" in
+      case "$(printf '%s' "$line" | jq -r '.type' 2>/dev/null)" in
         display_added|display_removed|display_updated)
-          log "event: $evtype"
+          events=$((events + 1))
           pending=1
           quiet=0
           ;;
@@ -171,17 +219,51 @@ while true; do
       if [ "$pending" -eq 1 ]; then
         quiet=$((quiet + 1))
         if [ "$quiet" -ge "$QUIET_TICKS" ]; then
-          settle event
+          log "確定 (${events} イベント) -> 突き合わせ"
+          settle event </dev/null
           pending=0
           quiet=0
         fi
       fi
+      # 購読相手が死んでいたら抜ける
+      kill -0 "$SUB_PID" 2>/dev/null || break
     else
-      # EOF: yashiki が落ちた等。購読し直す
-      log "subscribe が切断された -> 再購読"
+      # EOF
       break
     fi
-  done < <("$YASHIKI" subscribe --filter display 2>/dev/null)
+  done
 
-  sleep 2
+  exec 3<&-
+  kill "$SUB_PID" 2>/dev/null
+  wait "$SUB_PID" 2>/dev/null
+  SUB_PID=""
+  return 0
+}
+
+backoff=2
+fail_streak=0
+while true; do
+  before=$(date +%s)
+  subscribe_once
+  elapsed=$(( $(date +%s) - before ))
+
+  if [ "$elapsed" -ge 10 ]; then
+    # ある程度続いた = 正常な購読だった。バックオフを戻す
+    backoff=2
+    if [ "$fail_streak" -gt 0 ]; then
+      log "購読が回復した (${fail_streak} 回失敗のあと)"
+      fail_streak=0
+    fi
+    log "購読が切断された -> 再購読"
+  else
+    # 即切れ。ログを溢れさせないよう間引きつつバックオフする
+    fail_streak=$((fail_streak + 1))
+    case "$fail_streak" in
+      1|5|20|100) log "購読が即切断された (連続 ${fail_streak} 回) -> ${backoff}s 後に再試行" ;;
+    esac
+    backoff=$((backoff * 2))
+    [ "$backoff" -gt "$BACKOFF_MAX" ] && backoff="$BACKOFF_MAX"
+  fi
+
+  sleep "$backoff"
 done
