@@ -1,0 +1,20 @@
+#!/bin/sh
+# Claude Code をネイティブインストーラで ~/.local/ に導入する。
+# Homebrew cask ではなくネイティブ管理とし、以降の更新は claude 自身の
+# 自動アップデート（claude update）に任せる。
+set -eu
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+if [ -x "${HOME}/.local/bin/claude" ]; then
+  exit 0
+fi
+
+if ! command -v curl >/dev/null 2>&1; then
+  echo "curl が見つからないため Claude Code の導入をスキップします" >&2
+  exit 0
+fi
+
+curl -fsSL https://claude.ai/install.sh | bash
