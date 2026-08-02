@@ -30,6 +30,26 @@ SKETCHYBAR="/opt/homebrew/bin/sketchybar"
 BORDERS="/opt/homebrew/bin/borders"
 YASHIKI="/opt/homebrew/bin/yashiki"
 
+# メニューが開いているか。layer 101 は kCGPopUpMenuWindowLevel で、メニューバーの
+# メニューもコンテキストメニューもここに出る。
+#
+# ObjC.deepUnwrap は CGWindowListCopyWindowInfo の戻り値を解けない ([object Ref] に
+# なる) ので bindFunction で直接叩く。実測 64ms。呼ぶのは focus 失効時だけなので
+# 常駐コストにはならない。
+popup_menu_open() {
+  /usr/bin/osascript -l JavaScript <<'JXA' 2>/dev/null | grep -q '^1$'
+ObjC.bindFunction('CGWindowListCopyWindowInfo', ['id', ['unsigned int', 'unsigned int']]);
+var list = $.CGWindowListCopyWindowInfo(1, 0);
+var found = 0;
+for (var i = 0; i < $.CFArrayGetCount(list); i++) {
+  var d = ObjC.castRefToObject($.CFArrayGetValueAtIndex(list, i));
+  var lv = d.objectForKey('kCGWindowLayer');
+  if (!lv.isNil() && lv.intValue >= 101) { found = 1; break; }
+}
+String(found);
+JXA
+}
+
 # borders は yashiki から exec --track 起動。focus変更時に色を切替えるため
 # 旧 aerospace 設定にあった floating=オレンジ / tiling=白 のロジックを復元。
 update_borders() {
@@ -133,8 +153,17 @@ process_event() {
       wid=$(echo "$line" | jq -r '.window_id // "null"')
       if [ "$wid" = "null" ] || [ "$wid" = "0" ] || [ -z "$wid" ]; then
         # focus が失効した (主に新規 window 作成直後)。alt-hjkl 等が効かなくなる
-        # ため window-focus next で focus を回復する
-        "$YASHIKI" window-focus next 2>/dev/null &
+        # ため window-focus next で focus を回復する。
+        #
+        # ただしメニューが開いているときは触らない。Amphetamine のような
+        # ウィンドウを持たないメニューバー常駐アプリのアイコンを押すと、AX が
+        # focused_window を返せず (-25212) focus が失効した扱いになる。ここで
+        # window-focus を打つと別アプリが activate してメニューが即座に閉じる。
+        if popup_menu_open; then
+          :
+        else
+          "$YASHIKI" window-focus next 2>/dev/null &
+        fi
       else
         STATE=$(echo "$STATE" | jq --arg wid "$wid" '.focused_window = $wid')
         trigger_focus
