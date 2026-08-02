@@ -83,8 +83,23 @@ if [ -f "$LOG" ] && [ "$(wc -l <"$LOG" 2>/dev/null || echo 0)" -gt 500 ]; then
 fi
 
 SUB_PID=""
+
+# 購読を確実に畳む。
+# bash のプロセス置換はサブシェルを 1 段挟むため、$! に入るのはそのサブシェルで、
+# 実体の `yashiki subscribe` はさらにその子になる。サブシェルだけ kill すると
+# 孫が親を失って残り続けるので、子も明示的に落とす。
+# pgrep/pkill はディレクトリサービスが壊れると無言失敗するので ps で辿る。
+kill_subscription() {  # $1 に nowait を渡すと wait を省く（trap 内でのハング回避）
+  [ -n "$SUB_PID" ] || return 0
+  ps -axo pid,ppid 2>/dev/null | awk -v p="$SUB_PID" '$2 == p { print $1 }' \
+    | while read -r c; do kill "$c" 2>/dev/null; done
+  kill "$SUB_PID" 2>/dev/null
+  [ "${1:-}" = "nowait" ] || wait "$SUB_PID" 2>/dev/null
+  SUB_PID=""
+}
+
 cleanup() {
-  [ -n "$SUB_PID" ] && kill "$SUB_PID" 2>/dev/null
+  kill_subscription nowait
   [ -f "$LOCK" ] && [ "$(cat "$LOCK" 2>/dev/null)" = "$$" ] && rm -f "$LOCK"
   exit 0
 }
@@ -114,9 +129,24 @@ yashiki_ids() {
     | sort -n | tr '\n' ' ' | sed 's/ *$//'
 }
 
+# 直近に確定したディスプレイ ID 集合。sketchybar を作り直すかの判断に使う。
+LAST_IDS=""
+
+# sketchybar の item 構成はディスプレイ構成に依存するので、構成が変わったときだけ
+# 作り直す。--reload は bar_manager_destroy からの完全な再構築でバーが一瞬消えるため、
+# 解像度・配置だけが動いた回まで巻き込むと無駄にちらつく。
+# （抜き差し 1 回で display_updated が 10 回以上飛ぶので、毎回 reload すると実害が出る）
 reload_sketchybar() {
   [ -x "$SKETCHYBAR" ] || return 0
   "$SKETCHYBAR" --reload >/dev/null 2>&1 </dev/null || true
+}
+
+maybe_reload_sketchybar() {
+  if [ "$1" = "$LAST_IDS" ]; then
+    log "  ディスプレイ構成は不変 -> sketchybar reload は省略"
+    return 0
+  fi
+  reload_sketchybar
 }
 
 # 再起動は切り離して実行する。このウォッチャーは新 init が spawn する
@@ -159,13 +189,15 @@ settle() {
     # shellcheck disable=SC2086
     "$YASHIKI" set-outer-gap $OUTER_GAP >/dev/null 2>&1 </dev/null || true
     "$YASHIKI" retile >/dev/null 2>&1 </dev/null || true
-    [ "$phase" = "boot" ] || reload_sketchybar
+    [ "$phase" = "boot" ] || maybe_reload_sketchybar "$os_list"
+    LAST_IDS="$os_list"
     return
   fi
 
   if [ "$phase" = "boot" ]; then
     log "boot: 不一致 yashiki=[$ya_list] os=[$os_list] -> retile のみ (boot では再起動しない)"
     "$YASHIKI" retile >/dev/null 2>&1 </dev/null || true
+    LAST_IDS="$os_list"
     return
   fi
 
@@ -175,7 +207,8 @@ settle() {
   else
     log "$phase: 不一致だが cooldown 中 yashiki=[$ya_list] os=[$os_list] -> retile のみ"
     "$YASHIKI" retile >/dev/null 2>&1 </dev/null || true
-    reload_sketchybar
+    maybe_reload_sketchybar "$os_list"
+    LAST_IDS="$os_list"
   fi
 }
 
@@ -245,6 +278,8 @@ subscribe_once() {
       if [ "$quiet" -ge "$QUIET_TICKS" ]; then
         log "確定 (${events} イベント) -> 突き合わせ"
         settle event </dev/null
+        # バースト単位のカウントにする（累積のままだと読みづらい）
+        events=0
         pending=0
         quiet=0
       fi
@@ -252,9 +287,7 @@ subscribe_once() {
   done
 
   exec 3<&-
-  kill "$SUB_PID" 2>/dev/null
-  wait "$SUB_PID" 2>/dev/null
-  SUB_PID=""
+  kill_subscription
   return 0
 }
 
