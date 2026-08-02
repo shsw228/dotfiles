@@ -31,7 +31,26 @@
 #   構成が変わったかどうかは ID の集合だけで判定する。解像度・配置の変更は
 #   display イベント自体が拾うので、判定材料にする必要がない。
 #
-#   旧 relayout_on_boot.sh (NSScreen の visibleFrame インセットを監視) は前提が誤りだった。
+# ■ 30px はどこから来るか（旧 relayout_on_boot.sh が狙っていたもの）
+#   yashiki は NSScreen.visibleFrame は使わないが、自前で可視領域を算出している。
+#   macos/display.rs:320 detect_menu_bar_heights() が CGWindowList を
+#   kCGWindowListOptionOnScreenOnly で走査し、layer 24 (メニューバー層) の
+#   Window Server ウィンドウの高さをディスプレイごとに拾う。それを
+#   get_all_displays() (display.rs:211-213) で bounds から引いている。
+#
+#     visible_y      = bounds.y + menu_bar_height
+#     visible_height = bounds.height - menu_bar_height
+#
+#   メニューバーを自動非表示にしていると、この層のウィンドウは「実際に出ている間」
+#   しか on-screen に現れない。つまり検出値はその瞬間の表示状態のスナップショットで、
+#   しかも get_all_displays() は daemon 起動時と再構成時にしか呼ばれない。
+#   ログイン直後にメニューバーが出ていると 30px が焼き込まれ、次の構成変更まで
+#   上部に余分な padding が残る。手動で yashiki を再起動すると直るのはこのため。
+#
+#   旧 relayout_on_boot.sh が監視していた対象自体は的を射ていた。効かなかったのは
+#   retile / set-outer-gap では矩形を読み直せない（上記「なぜ必要か」）ため、
+#   焼き込まれた 30px を CLI から拭えなかったから。
+#
 #   旧 sketchybar 側 display_watcher.sh の役割もここへ統合した。両方が同じイベントで
 #   独立に動くと sketchybar が二重に作り直されるため、直列化している。
 
