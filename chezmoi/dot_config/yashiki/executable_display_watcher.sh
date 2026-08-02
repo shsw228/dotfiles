@@ -350,15 +350,18 @@ subscribe_once() {
       [ -z "$line" ] && continue
       case "$(printf '%s' "$line" | jq -r '.type' 2>/dev/null)" in
         snapshot)
-          # 購読開始時の全状態。基準として取り込むだけで、作り直しはしない
-          # （起動直後は init が sketchybar を --reload する）。
+          # 購読開始時の全状態。
+          #
+          # ここで settle まで走らせる。init は sketchybar を exec --track で
+          # 起動するだけで --reload しないので、これを省くと inset を書く前に
+          # 上がった sketchybar が前回値のままになる。
+          #
+          # sketchybar がまだ上がっていなくても apply_outer_gaps 側の
+          # sketchybar_bar_metrics が最大 4 秒粘るので、init が起動するのを待てる。
           absorb_snapshot "$line"
-          LAST_GEOM=$(geom_signature)
-          log "snapshot を取り込み -> 起動時の gap を適用"
-          # ここで --reload はしないが inset は書いておく。init 末尾の --reload が
-          # このあと走るので、書いていないと初回だけバーが 0 で置かれる。
-          publish_main_inset
-          apply_outer_gaps
+          log "snapshot を取り込み -> 初期化"
+          LAST_GEOM=""
+          settle </dev/null
           ;;
         display_added)
           absorb_display "$line"
