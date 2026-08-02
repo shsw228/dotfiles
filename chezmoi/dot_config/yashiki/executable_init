@@ -139,12 +139,12 @@ yashiki rule-add --app-name sketchybar ignore
 yashiki rule-add --app-id com.raycast.macos ignore
 yashiki rule-add --app-id com.knollsoft.Hookshot ignore
 
-##### ディスプレイ構成変更の追従 #####
-# yashiki がディスプレイ矩形を読み直すのは daemon 起動時と CGDisplay 再構成
-# コールバックの2箇所だけで、retile / set-outer-gap では読み直されない。
-# 抜き差しや起動直後にキャッシュが古いまま残ると CLI では復旧できないため、
-# 常駐ウォッチャーが yashiki の認識と OS の実体を突き合わせ、必要なら daemon を
-# 再起動する。sketchybar の作り直しもこのウォッチャーに集約している。
+##### ディスプレイ構成変更時の sketchybar 作り直し #####
+# sketchybar は item 構成を起動時の display 構成から決めているため、抜き差しや
+# メニューバー表示の変更があると作り直しが要る。本体の display_change イベントは
+# アクティブディスプレイの切り替えでも飛んでフォーカス移動のたびに再構築されて
+# しまうので、yashiki の display イベントを購読する常駐ウォッチャーに任せる。
+# yashiki のタイル配置は yashiki 自身が追従するので、ウォッチャーは触らない。
 # バックグラウンドで走らせ、init 自体はブロックしない。
 DISPLAY_WATCHER_SH="${HOME}/.config/yashiki/display_watcher.sh"
 [ -x "$DISPLAY_WATCHER_SH" ] && "$DISPLAY_WATCHER_SH" >/dev/null 2>&1 &
