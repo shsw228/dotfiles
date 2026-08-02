@@ -182,24 +182,25 @@ settle() {
 sleep "$BOOT_DELAY"
 settle boot </dev/null
 
-# 購読を1回張って、切れるまで読み続ける。戻り値は読めたイベント数。
-# FIFO 経由で子プロセスの PID を握り、抜けるときに必ず kill する。
-# （プロセス置換 < <(...) だと子を掴めず、再購読のたびに subscribe が
-#   リークして数十プロセス積み上がった）
+# 購読を1回張って、切れるまで読み続ける。
+#
+# プロセス置換を exec で fd 3 に繋ぐ。bash 3.2 でも $! に置換先の子 PID が入るので
+# （実測で kill -0 / kill が通ることを確認）、抜けるときに確実に始末できる。
+# `done < <(...)` 形式だと子を掴めず、再購読のたびに subscribe がリークして
+# 数十プロセス積み上がった。
+# FIFO 経由も試したが、writer が生きているのに reader が即 EOF を受け取るため使えない。
 subscribe_once() {
-  local fifo events pending quiet line rc
-  fifo="$RUNDIR/yashiki_dw_fifo.$$"
-  rm -f "$fifo"
-  mkfifo "$fifo" 2>/dev/null || return 1
+  local events pending quiet line rc spins window
 
-  "$YASHIKI" subscribe --filter display >"$fifo" 2>/dev/null </dev/null &
+  exec 3< <("$YASHIKI" subscribe --filter display 2>/dev/null </dev/null)
   SUB_PID=$!
-  exec 3<"$fifo"
-  rm -f "$fifo"
 
   events=0
   pending=0
   quiet=0
+
+  spins=0
+  window=$(date +%s)
 
   while true; do
     IFS= read -r -t 1 line <&3
@@ -214,22 +215,39 @@ subscribe_once() {
           quiet=0
           ;;
       esac
-    elif [ "$rc" -gt 128 ]; then
-      # read のタイムアウト = 1 秒無音
-      if [ "$pending" -eq 1 ]; then
-        quiet=$((quiet + 1))
-        if [ "$quiet" -ge "$QUIET_TICKS" ]; then
-          log "確定 (${events} イベント) -> 突き合わせ"
-          settle event </dev/null
-          pending=0
-          quiet=0
-        fi
-      fi
-      # 購読相手が死んでいたら抜ける
-      kill -0 "$SUB_PID" 2>/dev/null || break
-    else
-      # EOF
+      continue
+    fi
+
+    # ここに来たら read が非ゼロ。タイムアウトか EOF かを戻り値で区別してはいけない。
+    # シェバンの /bin/bash は 3.2 で、read -t はタイムアウトでも 1 を返す
+    # （128 超を返すのは bash 4.0 以降）。3.2 で >128 を条件にすると
+    # 毎秒のタイムアウトを EOF と誤判定し、1 秒ごとに購読を張り直してしまう。
+    # 子プロセスの生死で判定する。
+    if ! kill -0 "$SUB_PID" 2>/dev/null; then
       break
+    fi
+
+    # 子は生きている = タイムアウト。
+    # ただしパイプだけ閉じた場合に read が即座に返り続けて暴走しないよう、
+    # 「1 秒に 1 回」から外れた頻度を検出したら張り直す。
+    spins=$((spins + 1))
+    if [ "$spins" -ge 10 ]; then
+      if [ $(( $(date +%s) - window )) -lt 5 ]; then
+        log "read が即座に返り続ける -> 購読を張り直す"
+        break
+      fi
+      spins=0
+      window=$(date +%s)
+    fi
+
+    if [ "$pending" -eq 1 ]; then
+      quiet=$((quiet + 1))
+      if [ "$quiet" -ge "$QUIET_TICKS" ]; then
+        log "確定 (${events} イベント) -> 突き合わせ"
+        settle event </dev/null
+        pending=0
+        quiet=0
+      fi
     fi
   done
 
