@@ -27,7 +27,9 @@ yashiki set-auto-raise disabled
 yashiki set-menu-bar-status disabled
 
 ##### 連携プロセス #####
-# JankyBorders を yashiki に紐づけて起動（yashiki quit で一緒に停止）
+# JankyBorders を yashiki に紐づけて起動。
+# brew services では起動しないこと。二重起動になると単一インスタンスガードで
+# こちら側が即死し、tracked_processes に死んだ pid が残る。
 yashiki exec --track "borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0"
 
 ##### tag 切替バインド #####
@@ -152,13 +154,16 @@ yashiki rule-add --app-id com.knollsoft.Hookshot ignore
 DISPLAY_WATCHER_SH="${HOME}/.config/yashiki/display_watcher.sh"
 [ -x "$DISPLAY_WATCHER_SH" ] && "$DISPLAY_WATCHER_SH" >/dev/null 2>&1 &
 
-##### sketchybar 再初期化 #####
-# yashiki 起動が完了したこの時点で sketchybar を reload する。
-# sketchybar の bridge (yashiki_bridge.sh) と list-outputs は起動時に
-# yashiki が動いている前提で、起動順の競合で sketchybar が先に上がると
-# workspace 表示が壊れる。ここで reload し live な yashiki へ繋ぎ直す。
-# sketchybar 未起動時は brew services が後から起動し、その時点で yashiki は
-# 既に上がっているため問題ない（reload 失敗は無視）。
-if [ -x /opt/homebrew/bin/sketchybar ]; then
-  /opt/homebrew/bin/sketchybar --reload >/dev/null 2>&1 || true
-fi
+##### sketchybar #####
+# sketchybar も yashiki に紐づけて起動する。init のここまでが終わってから上がるので、
+# bridge (yashiki_bridge.sh) と list-outputs は必ず live な yashiki を掴む。
+# brew services に任せると起動順が競合し、sketchybar が先に上がった回だけ
+# workspace 表示が壊れていた。
+#
+# プロセスグループが yashiki と同じになるので、yashiki がクラッシュしたときも
+# launchd がまとめて落とす（LaunchAgent 側で AbandonProcessGroup を既定のままに
+# しておくこと）。中途半端に bar だけ生き残る状態を作らない。
+#
+# bar.lua が読む inset は display_watcher.sh が上で書いている。取りこぼしても
+# ウォッチャーが snapshot 受信時に reload するので追いつく。
+yashiki exec --track "sketchybar"
