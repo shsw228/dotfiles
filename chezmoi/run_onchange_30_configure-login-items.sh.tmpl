@@ -55,10 +55,23 @@ fi
 #
 # AbandonProcessGroup は既定 (false) のままにすること。true にすると上の連鎖が
 # 止まる。KeepAlive と組み合わせて「まとめて落ちて、まとめて上がり直す」にする。
+#
+# 起動先は fork ビルドがあればそちらを優先する。この dotfiles は fork 前提で、
+# 上流ビルドではメニューバー表示の切替に追従できず (display イベントが飛ばない)、
+# display_watcher.sh が使う set-outer-gap --output と physical_* も無い。
+#
+# cask の Yashiki.app は消さない。bundle ID が別 (dev.typester.yashiki と
+# dev.typester.yashiki.fork) なのでアクセシビリティ権限も別管理になり、共存できる。
+# 上流に取り込まれたら Yashiki-fork.app を消すだけで cask 側へ戻る。
 plist="$HOME/Library/LaunchAgents/com.shsw228.yashiki.plist"
-app="/Applications/Yashiki.app/Contents/MacOS/yashiki"
+for candidate in /Applications/Yashiki-fork.app /Applications/Yashiki.app; do
+  if [ -x "$candidate/Contents/MacOS/yashiki" ]; then
+    app="$candidate/Contents/MacOS/yashiki"
+    break
+  fi
+done
 
-if [ -x "$app" ]; then
+if [ -n "${app:-}" ] && [ -x "$app" ]; then
   mkdir -p "$HOME/Library/LaunchAgents"
   cat >"$plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
