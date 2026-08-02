@@ -266,12 +266,26 @@ sketchybar_bar_metrics() {
 #
 # bar.lua 側で OS を見に行かせない。yashiki の購読ペイロードから導いた値と
 # NSScreen から読んだ値の二系統になると、食い違ったときに原因を追えなくなる。
+#
+# ただしメニューバーが自動非表示のときは 0 を渡す。ノッチ帯はメニューバーを
+# 隠しても解放されないので予約量は 37 前後のまま残るが、バーはそこに置ける。
+# notch_width で items をノッチの左右に振る作りになっているし、実際そう描画される。
+# 予約量をそのまま渡すとバーがノッチ帯の下に落ち、上端 37px が死ぬ。
+# ウィンドウはバーの 8px 下に付いてくるので、まとめて下がってしまう。
+#
+# 自動非表示なら予約量はまるごとノッチぶんなので、ノッチの大きさを別途知る必要はない。
+# 幾何だけで判定する手 (予約量 > safeAreaInsets.top) もあるが、ノッチ機では
+# メニューバー 38 対ノッチ 37.5 の 0.5pt 差しかなく、一致する機種があれば破綻する。
 publish_main_inset() {
   local inset
   # "id=x,y,w,h,inset,is_main" を = と , で割る -> $6=inset, $7=is_main
   inset=$(printf '%s' "$DISPLAY_GEOM" | grep -v '^$' \
     | awk -F'[=,]' '$7 == 1 { print $6; exit }')
   case "$inset" in ''|*[!0-9]*) return 0 ;; esac
+  # キー未設定は macOS 既定の「表示」扱い
+  if [ "$(defaults read NSGlobalDomain _HIHideMenuBar 2>/dev/null || echo 0)" = "1" ]; then
+    inset=0
+  fi
   mkdir -p "${INSET_FILE%/*}" 2>/dev/null || return 0
   printf '%s\n' "$inset" >"$INSET_FILE" 2>/dev/null || true
 }
