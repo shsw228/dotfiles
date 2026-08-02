@@ -139,14 +139,15 @@ yashiki rule-add --app-name sketchybar ignore
 yashiki rule-add --app-id com.raycast.macos ignore
 yashiki rule-add --app-id com.knollsoft.Hookshot ignore
 
-##### 起動直後のフレーム確定待ち → relayout #####
-# Mac 再起動直後は macOS メニューバーの自動非表示 (_HIHideMenuBar) が効くまでの
-# 間だけ、yashiki が狭いフレームを基準に outer-gap を計算し、上部に余分な
-# padding が残ることがある（yashiki を手動再起動すると直る事象）。メニューバーが
-# 確保する上部インセットの変化を監視し、確定したところで retile して組み直す。
+##### ディスプレイ構成変更の追従 #####
+# yashiki がディスプレイ矩形を読み直すのは daemon 起動時と CGDisplay 再構成
+# コールバックの2箇所だけで、retile / set-outer-gap では読み直されない。
+# 抜き差しや起動直後にキャッシュが古いまま残ると CLI では復旧できないため、
+# 常駐ウォッチャーが yashiki の認識と OS の実体を突き合わせ、必要なら daemon を
+# 再起動する。sketchybar の作り直しもこのウォッチャーに集約している。
 # バックグラウンドで走らせ、init 自体はブロックしない。
-RELAYOUT_SH="${HOME}/.config/yashiki/relayout_on_boot.sh"
-[ -x "$RELAYOUT_SH" ] && "$RELAYOUT_SH" >/dev/null 2>&1 &
+DISPLAY_WATCHER_SH="${HOME}/.config/yashiki/display_watcher.sh"
+[ -x "$DISPLAY_WATCHER_SH" ] && "$DISPLAY_WATCHER_SH" >/dev/null 2>&1 &
 
 ##### sketchybar 再初期化 #####
 # yashiki 起動が完了したこの時点で sketchybar を reload する。
