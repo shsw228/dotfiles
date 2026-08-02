@@ -310,30 +310,48 @@ subscribe_once() {
   return 0
 }
 
+daemon_alive() {
+  "$YASHIKI" list-outputs >/dev/null 2>&1 </dev/null
+}
+
+back_off() {  # $1: ログに出す理由
+  fail_streak=$((fail_streak + 1))
+  # ログを溢れさせないよう間引く
+  case "$fail_streak" in
+    1|5|20|100) log "$1 (連続 ${fail_streak} 回) -> ${backoff}s 後に再試行" ;;
+  esac
+  sleep "$backoff"
+  backoff=$((backoff * 2))
+  [ "$backoff" -gt "$BACKOFF_MAX" ] && backoff="$BACKOFF_MAX"
+}
+
 backoff=2
 fail_streak=0
 while true; do
+  # daemon の生死を先に確かめる。
+  # 以前は「購読が 10 秒以上続いたら正常」でバックオフを戻していたが、daemon が
+  # 落ちていると subscribe の失敗自体に 10 秒前後かかるため判定が成立してしまい、
+  # 実質バックオフが効かず 10 秒間隔で subscribe を撒き続けていた。
+  if ! daemon_alive; then
+    back_off "daemon に接続できない"
+    continue
+  fi
+
   before=$(date +%s)
   subscribe_once
   elapsed=$(( $(date +%s) - before ))
 
-  if [ "$elapsed" -ge 10 ]; then
-    # ある程度続いた = 正常な購読だった。バックオフを戻す
-    backoff=2
-    if [ "$fail_streak" -gt 0 ]; then
-      log "購読が回復した (${fail_streak} 回失敗のあと)"
-      fail_streak=0
-    fi
-    log "購読が切断された -> 再購読"
-  else
-    # 即切れ。ログを溢れさせないよう間引きつつバックオフする
-    fail_streak=$((fail_streak + 1))
-    case "$fail_streak" in
-      1|5|20|100) log "購読が即切断された (連続 ${fail_streak} 回) -> ${backoff}s 後に再試行" ;;
-    esac
-    backoff=$((backoff * 2))
-    [ "$backoff" -gt "$BACKOFF_MAX" ] && backoff="$BACKOFF_MAX"
+  if [ "$fail_streak" -gt 0 ]; then
+    log "購読が回復した (${fail_streak} 回失敗のあと)"
   fi
+  backoff=2
+  fail_streak=0
 
-  sleep "$backoff"
+  if [ "$elapsed" -ge 10 ]; then
+    log "購読が切断された -> 再購読"
+    sleep 2
+  else
+    # daemon は生きているのに即切れた。張り直す前に少し待つ。
+    back_off "購読が即切断された"
+  fi
 done
