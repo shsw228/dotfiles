@@ -9,6 +9,8 @@ yashiki add-exec-path /opt/homebrew/bin
 ##### レイアウトと余白 #####
 yashiki layout-set-default tatami
 # top: sketchybar y_offset(8) + height(32) + 余白(8) = 48 (4の倍数で揃える)
+# ディスプレイごとの補正は display_watcher.sh が構成を見て当て直すので、ここは
+# ウォッチャーが動くまでの初期値。
 yashiki set-outer-gap 48 12 12 12
 yashiki layout-cmd --layout tatami set-inner-gap 10
 # master:stack = 6:4
@@ -144,7 +146,8 @@ yashiki rule-add --app-id com.knollsoft.Hookshot ignore
 # メニューバー表示の変更があると作り直しが要る。本体の display_change イベントは
 # アクティブディスプレイの切り替えでも飛んでフォーカス移動のたびに再構築されて
 # しまうので、yashiki の display イベントを購読する常駐ウォッチャーに任せる。
-# yashiki のタイル配置は yashiki 自身が追従するので、ウォッチャーは触らない。
+# 上の set-outer-gap は全ディスプレイ共通の初期値でしかないので、構成を見た
+# ディスプレイごとの当て直しもウォッチャーが受け持つ。
 # バックグラウンドで走らせ、init 自体はブロックしない。
 DISPLAY_WATCHER_SH="${HOME}/.config/yashiki/display_watcher.sh"
 [ -x "$DISPLAY_WATCHER_SH" ] && "$DISPLAY_WATCHER_SH" >/dev/null 2>&1 &
