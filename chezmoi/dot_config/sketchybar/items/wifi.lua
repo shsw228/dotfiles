@@ -6,12 +6,12 @@ local wifi = sbar.add("item", "wifi", {
   position = "right",
   icon = {
     string = icons.wifi.connected,
-    color  = colors.white,
+    color  = colors.fg,
     padding_left  = 8,
     padding_right = 4,
   },
   label = {
-    color = colors.white,
+    color = colors.fg,
     padding_right = 8,
     max_chars = 20,
   },
@@ -29,7 +29,7 @@ local function refresh()
       local ssid = (result or ""):gsub("%s+$", "")
       if ssid == "" or ssid == "null" then
         wifi:set({
-          icon  = { string = icons.wifi.disconnected, color = colors.grey },
+          icon  = { string = icons.wifi.disconnected, color = colors.fg_dim },
           label = { string = "off" },
         })
       else

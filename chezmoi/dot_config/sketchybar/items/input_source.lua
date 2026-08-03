@@ -9,7 +9,7 @@ local input = sbar.add("item", "input_source", {
   position = "right",
   icon = { drawing = false, padding_left = 0, padding_right = 0 },
   label = {
-    color = colors.white,
+    color = colors.fg,
     padding_left  = 8,
     padding_right = 8,
     width = 18,
@@ -26,7 +26,7 @@ local function refresh()
     if src:find("Japanese") then
       label, color = "あ", colors.orange
     else
-      label, color = "A", colors.white
+      label, color = "A", colors.fg
     end
     input:set({ label = { string = label, color = color } })
   end)
