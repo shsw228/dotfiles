@@ -118,10 +118,17 @@ jobs:
           test -f "$home/.zshenv"
           test -f "$home/.zshrc"
 
+      - name: Rust bridge checks
+        run: |
+          cd "$GITHUB_WORKSPACE/chezmoi/yashiki-bridge"
+          cargo fmt --check
+          cargo clippy --locked --release -- -D warnings
+
       - name: Shell syntax checks
         run: |
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_00_install-homebrew.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_10_install-homebrew-packages.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_14_build-yashiki-bridge.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_50_set-ssh-auth-sock.sh.tmpl"
@@ -132,7 +139,6 @@ jobs:
           bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_toggle_tag.sh"
           bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_main_count.sh"
           bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/sketchybar/executable_sketchybarrc"
-          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/sketchybar/plugins/executable_yashiki_bridge.sh"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zprofile"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshenv"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshrc"
