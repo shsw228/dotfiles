@@ -1,19 +1,21 @@
 #!/bin/bash
-# yashiki のフォーカス状態に反応する常駐ウォッチャー。
+# Long-running watcher that reacts to yashiki's focus state.
 #
-#   1. JankyBorders の枠色を floating / tiling で切り替える
-#   2. フォーカスが宙に浮いたら yashiki に回復させる
+#   1. Switch the JankyBorders frame colour between floating and tiling
+#   2. Restore focus when it ends up nowhere
 #
-# yashiki にイベントフックは無い (exec は即時実行) ので、状態を知る手段は
-# subscribe だけ。init から背景で起動し、yashiki と同じプロセスグループに入る。
+# yashiki has no event hooks (exec runs immediately), so subscribe is the only
+# way to observe state. Started in the background from init, which puts it in
+# yashiki's process group.
 #
-# sketchybar とは無関係なので yashiki_bridge.sh には置かない。
+# Keep this out of yashiki_bridge.sh: none of it concerns sketchybar.
 
 set -u
 
-# CLI は稼働中の daemon と同じバイナリを使う。サブコマンドは CLI 側でパースされて
-# から IPC に載るため、CLI と daemon の版が食い違うと弾かれる。
-# 引数なしか start のときだけ daemon とみなす (CLI 呼び出しを拾わないため)。
+# Use the same binary as the running daemon. Subcommands are parsed by the CLI
+# before they reach IPC, so a version mismatch gets rejected.
+# Only treat it as the daemon when invoked with no arguments or with start,
+# otherwise CLI invocations match too.
 resolve_yashiki() {
   local running
   running=$(ps -axo args 2>/dev/null \
@@ -32,7 +34,7 @@ resolve_yashiki() {
 YASHIKI=$(resolve_yashiki)
 BORDERS="/opt/homebrew/bin/borders"
 
-# 旧 AeroSpace 設定の floating=オレンジ / tiling=白 を踏襲
+# Carried over from the previous AeroSpace setup: floating orange, tiling white
 BORDER_FLOATING=0xfff5a97f
 BORDER_TILING=0xffe1e3e4
 BORDER_INACTIVE=0xff494d64
@@ -41,7 +43,8 @@ RUNDIR="${TMPDIR:-/tmp}"
 LOCK="$RUNDIR/yashiki_focus_watcher.pid"
 BACKOFF_MAX=60
 
-# 多重起動防止。pgrep はディレクトリサービスが壊れていると無言失敗するため使わない。
+# Guard against a second instance. pgrep fails silently when directory services
+# are wedged, so use a pid file that kill -0 can verify.
 if [ -f "$LOCK" ]; then
   old=$(cat "$LOCK" 2>/dev/null)
   case "$old" in
@@ -62,12 +65,12 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# メニューが開いているか。layer 101 は kCGPopUpMenuWindowLevel で、メニューバーの
-# メニューもコンテキストメニューもここに出る。yashiki 本体が auto-raise の抑止に
-# 使っているのと同じ基準。
+# Is a menu open? Layer 101 is kCGPopUpMenuWindowLevel, where both menu bar
+# menus and context menus live. Same signal yashiki itself uses to suppress
+# auto-raise.
 #
-# ObjC.deepUnwrap は CGWindowListCopyWindowInfo の戻り値を解けないので
-# bindFunction で直接叩く。64ms かかるが、呼ぶのはフォーカス失効時だけ。
+# ObjC.deepUnwrap cannot unwrap what CGWindowListCopyWindowInfo returns, so call
+# it through bindFunction. Costs 64ms, but only runs when focus is lost.
 popup_menu_open() {
   /usr/bin/osascript -l JavaScript <<'JXA' 2>/dev/null | grep -q '^1$'
 ObjC.bindFunction('CGWindowListCopyWindowInfo', ['id', ['unsigned int', 'unsigned int']]);
@@ -90,19 +93,20 @@ apply_borders() {  # $1=floating (true/false)
     >/dev/null 2>&1 </dev/null &
 }
 
-# フォーカスが宙に浮いたら回復させる。放置すると alt-hjkl 等が効かなくなる。
+# Restore focus when it ends up nowhere, otherwise alt-hjkl stops working.
 #
-# メニュー表示中は触らない。フォーカスを動かすとメニューを出しているアプリが
-# 非アクティブになり、メニューが閉じてしまう。ウィンドウを持たないメニューバー
-# 常駐アプリでは、メニューを開いた時点でフォーカス失効として流れてくる。
+# Leave it alone while a menu is open. Moving focus deactivates the app showing
+# the menu, which dismisses it. Menu bar apps that own no window report focus as
+# lost the moment their menu opens.
 recover_focus() {
   popup_menu_open && return 0
   "$YASHIKI" window-focus next >/dev/null 2>&1 </dev/null &
 }
 
-# window_focused は window_id しか載せないので、floating なウィンドウの id 集合を
-# 持っておく。フォーカスは頻繁に動くので、そのたびに list-windows を叩かない。
-# bash 3.2 に declare -A は無いため空白区切りの文字列で持つ。
+# window_focused carries only a window_id, so keep the set of floating window
+# ids here rather than running list-windows on every focus change.
+# The shebang's bash is 3.2, which has no declare -A, hence a space-separated
+# string.
 FLOATING=" "
 
 floating_set() {  # $1=id  $2=true/false

@@ -1,62 +1,66 @@
 #!/bin/bash
-# ディスプレイ構成が変わったら sketchybar を作り直す常駐ウォッチャー。
+# Long-running watcher that rebuilds sketchybar when the display configuration
+# changes, and re-applies the per-display outer gap.
 #
-# ■ なぜ必要か
-#   sketchybar 本体もディスプレイの抜き差しを検知する (src/display.c) が、やるのは
-#   バーウィンドウの再配置までで item 構成は作り直さない。notch_spacer や
-#   bar.lua の y_offset は起動時の構成から決めているので、構成が変わったら
-#   --reload しないと合わなくなる。--reload は bar_manager_destroy + init +
-#   exec_config_file なので item ごと組み直せる。
+# ■ Why it is needed
+#   sketchybar detects hotplugs itself (src/display.c), but only repositions the
+#   bar window; it does not rebuild the items. notch_spacer and bar.lua's
+#   y_offset are derived from the configuration at startup, so a change needs a
+#   --reload, which is bar_manager_destroy + init + exec_config_file and does
+#   rebuild them.
 #
-#   sketchybar 自身の display_change イベントは使えない。あれはアクティブな
-#   ディスプレイが変わったときにも飛ぶので、フォーカス移動のたびにバーが
-#   作り直されてしまう。yashiki の display イベントを購読するのはそのため。
+#   sketchybar's own display_change event is unusable: it also fires when the
+#   active display changes, which would rebuild the bar on every focus move.
+#   Hence subscribing to yashiki's display events instead.
 #
-# ■ outer-gap をディスプレイごとに設定し直す
-#   sketchybar の y_offset は全ディスプレイ共通だが、各ディスプレイが上部に確保
-#   する量 (メニューバー / ノッチ帯) は異なる。yashiki はその可視領域から gap を
-#   足すので、gap が共通だとバーとウィンドウの間隔がディスプレイごとにずれる。
+# ■ Per-display outer gap
+#   sketchybar's y_offset is shared by all displays, but each one reserves a
+#   different amount at the top (menu bar, notch). yashiki adds the gap to the
+#   usable area, so one shared gap leaves the bar and the windows at different
+#   distances on different displays.
 #
-#     ノッチ付き内蔵は自動非表示でもノッチ帯 38px を確保し続ける。
-#     外部 (inset 0) と同じ gap 48 だと内蔵だけ 38px 余分に空く。
+#     A notched built-in panel keeps its 38px strip even with the menu bar
+#     auto-hidden. With the same gap of 48 as an external display (inset 0) the
+#     built-in one ends up 38px lower.
 #
-#   バーの直下 WINDOW_MARGIN に揃うよう、ディスプレイごとに gap.top を計算する:
+#   Compute gap.top per display so the windows sit WINDOW_MARGIN below the bar:
 #
 #     gap.top = y_offset + bar_height + WINDOW_MARGIN - inset
 #
-#   y_offset と bar_height は sketchybar から読むので、bar.lua を変えても
-#   ここを直す必要はない。init に固定値を書く方法はモニタの抜き差しに追従できず
-#   (init は daemon 起動時に 1 回しか走らない)、メニューバー表示の切替でも
-#   破綻するため採らない。
+#   y_offset and bar_height are read from sketchybar, so changing bar.lua does
+#   not require touching this. A fixed value in init is not an option: init runs
+#   once at daemon startup, so it cannot follow hotplugs or menu bar changes.
 #
-# ■ yashiki のビルド依存
-#   使っているコマンド (subscribe / list-outputs) は上流 0.15.2 にもあるので、
-#   ディスプレイの抜き差しは上流ビルドでも追従する。
+# ■ yashiki build requirements
+#   subscribe and list-outputs exist in upstream 0.15.2, so hotplugs are
+#   followed on an upstream build as well.
 #
-#   ただしメニューバー表示の切替は fork ビルド (shsw228/yashiki の
-#   fix/display-reconfiguration) が要る。上流は NSApplicationDidChangeScreenParameters
-#   を「display callback が拾うから」と握り潰しており、メニューバーの表示切替は
-#   ディスプレイ再構成を伴わないため display イベントが 1 件も飛ばない。
-#   その状態ではこのウォッチャーは起動せず、バーは下がったままになる。
+#   Menu bar visibility changes need the fork (shsw228/yashiki,
+#   fix/display-reconfiguration). Upstream ignores
+#   NSApplicationDidChangeScreenParameters on the grounds that the display
+#   callback covers it, but toggling the menu bar involves no display
+#   reconfiguration, so not a single display event is emitted and this watcher
+#   never wakes up.
 #
-#   購読ペイロードの物理矩形 (physical_x/y/width/height) も fork 側の追加。
-#   これが無いと inset を導けず、bar.lua に渡す値も出せない。
+#   The physical rectangle in the subscription payload (physical_x/y/width/
+#   height) is also a fork addition. Without it the inset cannot be derived, and
+#   neither can the value handed to bar.lua.
 #
-#   加えて上流はメニューバーの高さを CGWindowList の窓スキャンで測る。これは
-#   「今描画されているか」であって「どれだけ予約しているか」ではないため、
-#   ノッチ帯や全画面表示中に実際の予約量と食い違う。
+#   Upstream also measures the menu bar height by scanning the window list,
+#   which reports what is drawn rather than what is reserved, and therefore
+#   disagrees with the real reservation around notches and fullscreen spaces.
 
 set -u
 
-# CLI は稼働中の daemon と同じバイナリを使う。
+# Use the same binary as the running daemon.
 #
-# サブコマンドは CLI 側でパースされてから IPC に載るため、CLI と daemon の版が
-# 食い違うと弾かれる。別ビルドの daemon を動かしているときに PATH の Homebrew 版
-# CLI を叩いてしまう事故が実際に起きた。
+# Subcommands are parsed by the CLI before they reach IPC, so a version mismatch
+# gets rejected. Reaching for the Homebrew CLI on PATH while a different build
+# runs as the daemon is easy to do by accident.
 #
-# app バンドルから open で起動された daemon は引数を持たず、launchd 経由や
-# 手動起動では "start" が付く。CLI 呼び出しを拾わないよう、引数なしか start の
-# ときだけ daemon とみなす。
+# A daemon launched from the app bundle with open carries no arguments; via
+# launchd or by hand it carries "start". Match only those two so CLI
+# invocations are not mistaken for the daemon.
 resolve_yashiki() {
   local running
   running=$(ps -axo args 2>/dev/null \
@@ -75,48 +79,52 @@ resolve_yashiki() {
 YASHIKI=$(resolve_yashiki)
 SKETCHYBAR="/opt/homebrew/bin/sketchybar"
 
-# display_added / display_removed（抜き差し）を含むバーストは、構成が確定するまで
-# ジオメトリが数秒動き続ける。途中で確定すると中間状態で sketchybar を組み直して
-# しまうので、1 秒 tick で QUIET_TICKS 回続けて無イベントになるまで待つ。
+# A burst containing display_added or display_removed keeps moving for a few
+# seconds until the configuration settles. Acting early would rebuild sketchybar
+# against an intermediate state, so wait for QUIET_TICKS consecutive idle ticks
+# of one second each.
 QUIET_TICKS=3
 
-# display_updated だけのバースト（メニューバー表示の切替、解像度変更など）は 1 tick 待つ。
+# A burst of display_updated alone (menu bar toggle, resolution change) waits
+# one tick.
 #
-# yashiki の状態自体は 1 件目の時点で確定している。だがイベントは変化した
-# ディスプレイごとに 1 件ずつ飛び、こちらは list-outputs を引き直さず各イベントの
-# ペイロードを DISPLAY_GEOM に積む方式なので、1 件目で settle すると 2 台目が
-# 前回の値のまま残る。実測でメニューバー切替 1 回につき reload が 2 回走り、
-# 1 回目は d2 が旧値 (inset=30) のまま gap とバー位置を決めていた。
+# yashiki's own state is final by the time the first event arrives, but events
+# come one per changed display, and this script accumulates their payloads into
+# DISPLAY_GEOM rather than re-reading list-outputs. Settling on the first event
+# would leave the second display at its previous value.
 #
-# 同じ reconcile から出るイベントは連続して届くので、1 tick 無イベントを待てば
-# 全台ぶんを取り込める。抜き差しほど構成が動き続けるわけではないので 1 で足りる。
+# Events from one reconcile arrive back to back, so a single idle tick is enough
+# to take them all in. The configuration is not still moving the way it is
+# during a hotplug.
 #
-# 抜き差しと混ざる場合の順序は問題にならない。reconcile_displays は added / removed を
-# 先に発行してから updated を出すので、抜き差しなら必ず構造イベントを先に見る。
+# Mixing with a hotplug is safe: reconcile_displays emits added and removed
+# before updated, so a structural event is always seen first.
 UPDATED_QUIET_TICKS=1
 
-# sketchybar のバー下端とウィンドウ上端の間隔。左右/下の gap もこれに揃える
+# Distance between the bottom of the bar and the top of a window. The side and
+# bottom gaps match it.
 WINDOW_MARGIN=8
 SIDE_GAP=12
-# 購読が失敗し続けたときのバックオフ上限（秒）
+# Upper bound in seconds for the reconnect backoff
 BACKOFF_MAX=60
 
 RUNDIR="${TMPDIR:-/tmp}"
 LOG="$RUNDIR/yashiki_display_watcher.log"
 LOCK="$RUNDIR/yashiki_display_watcher.pid"
 
-# bar.lua に渡す主ディスプレイの inset。
+# The main display's inset, handed to bar.lua.
 #
-# TMPDIR は使えない。ウォッチャーは yashiki の init から、sketchybar は brew
-# services から起動されるので、片方に TMPDIR が無いと /tmp に落ちて相手を見失う。
-# XDG_CACHE_HOME も launchd 配下には渡らないため、既定値を直に書く。
+# TMPDIR is no good here: the two sides are started from different places, and
+# if either lacks TMPDIR it falls back to /tmp and they lose each other.
+# XDG_CACHE_HOME does not reach processes under launchd either, so spell out the
+# default path.
 INSET_FILE="$HOME/.cache/yashiki/bar_inset"
 
 log() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" >>"$LOG" 2>/dev/null || true; }
 
-# 多重起動防止。pgrep はディレクトリサービスが壊れていると
-# "Cannot get process list" で無言失敗するため使わない（実際にそれで
-# ウォッチャーが多重起動した）。kill -0 で生存確認できる PID ファイルを使う。
+# Guard against a second instance. pgrep fails silently with "Cannot get process
+# list" when directory services are wedged, so use a pid file that kill -0 can
+# verify.
 if [ -f "$LOCK" ]; then
   old=$(cat "$LOCK" 2>/dev/null)
   case "$old" in
@@ -131,19 +139,19 @@ if [ -f "$LOCK" ]; then
 fi
 printf '%s\n' "$$" >"$LOCK" 2>/dev/null || true
 
-# ログは追記しつつ肥大化を防ぐ
+# Append, but do not let the log grow without bound
 if [ -f "$LOG" ] && [ "$(wc -l <"$LOG" 2>/dev/null || echo 0)" -gt 500 ]; then
   : >"$LOG" 2>/dev/null || true
 fi
 
 SUB_PID=""
 
-# 購読を確実に畳む。
-# bash のプロセス置換はサブシェルを 1 段挟むため、$! に入るのはそのサブシェルで、
-# 実体の `yashiki subscribe` はさらにその子になる。サブシェルだけ kill すると
-# 孫が親を失って残り続けるので、子も明示的に落とす。
-# pgrep/pkill はディレクトリサービスが壊れると無言失敗するので ps で辿る。
-kill_subscription() {  # $1 に nowait を渡すと wait を省く（trap 内でのハング回避）
+# Tear the subscription down completely.
+# Process substitution inserts a subshell, so $! is that subshell and the actual
+# `yashiki subscribe` is its child. Killing only the subshell orphans the child,
+# so kill it explicitly too.
+# pgrep/pkill fail silently when directory services are wedged; walk ps instead.
+kill_subscription() {  # pass nowait to skip the wait, which would hang in a trap
   [ -n "$SUB_PID" ] || return 0
   ps -axo pid,ppid 2>/dev/null | awk -v p="$SUB_PID" '$2 == p { print $1 }' \
     | while read -r c; do kill "$c" 2>/dev/null; done
@@ -161,28 +169,27 @@ trap cleanup EXIT INT TERM
 
 log "start pid=$$ (yashiki=$YASHIKI)"
 
-# 現在のジオメトリ。購読で流れてくる状態をそのまま保持する。
+# Current geometry, held exactly as the subscription reports it.
 #
-# ID の集合ではなくジオメトリで比較すること。バーの y_offset はメニューバーが
-# 確保している高さに依存するので、ディスプレイの増減がなくても表示設定が
-# 変われば置き直しが要る。ID だけで見ていたときは「構成は不変」と判断して
-# reload を飛ばし、メニューバーが消えてもバーが下がったままだった。
+# Compare geometry, not the set of ids. The bar's y_offset depends on how much
+# the menu bar reserves, so the bar needs repositioning whenever that changes,
+# even with the same displays attached.
 #
-# subscribe は snapshot と各イベントでディスプレイの状態をそのまま載せてくるので、
-# list-outputs で取り直さない。取り直すと同じ情報を二度問い合わせることになるし、
-# イベント時点の状態とずれる余地も生まれる。
+# subscribe carries each display's state in the snapshot and in every event, so
+# there is no need to re-read list-outputs. Doing so would ask for the same
+# information twice and could disagree with the event being handled.
 #
-# gap の計算には各ディスプレイの上部予約量 (inset) が要る。可視領域だけでは
-# 求まらないが、購読ストリームは物理矩形も載せてくるので
-#   inset = 可視.y - 物理.y
-# で出せる。NSScreen を別途叩く必要はない（叩くと値の由来が二重になるうえ、
-# AppKit のスクリーンキャッシュを避けるため短命プロセスを起動する羽目になる）。
+# Computing the gap needs each display's top inset. The usable area alone does
+# not give it, but the stream also carries the physical rectangle:
+#   inset = visible.y - physical.y
+# No separate NSScreen lookup, which would give the value two different origins
+# and require spawning a short-lived process to dodge AppKit's screen cache.
 #
-# is_main も持つ。bar.lua の y_offset は主ディスプレイの inset で決まるので、
-# 主が移っただけでもバーを置き直す必要がある。
+# is_main is kept as well: bar.lua's y_offset follows the main display's inset,
+# so the bar has to move when main does, even if nothing else changed.
 #
-# 連想配列は使わない。シェバンの /bin/bash は 3.2 で declare -A がない。
-# "id=x,y,w,h,inset,is_main" を改行区切りで持つ。
+# No associative arrays. The shebang's bash is 3.2, which has no declare -A, so
+# this is newline-separated "id=x,y,w,h,inset,is_main".
 DISPLAY_GEOM=""
 
 geom_put() {  # $1=id  $2=geom
@@ -197,7 +204,7 @@ geom_signature() {
   printf '%s' "$DISPLAY_GEOM" | grep -v '^$' | LC_ALL=C sort | tr '\n' ';'
 }
 
-# snapshot 行から全ディスプレイを取り込む
+# Take in every display from a snapshot line
 absorb_snapshot() {
   local id geom
   DISPLAY_GEOM=""
@@ -207,7 +214,7 @@ absorb_snapshot() {
   done < <(printf '%s' "$1" | jq -r '.displays[]? | "\(.id)|\(.x),\(.y),\(.width),\(.height),\(.y - .physical_y),\(if .is_main then 1 else 0 end)"' 2>/dev/null)
 }
 
-# display_added / display_updated 行から 1 台ぶんを取り込む
+# Take in one display from a display_added or display_updated line
 absorb_display() {
   local pair id geom
   pair=$(printf '%s' "$1" | jq -r '.display | "\(.id)|\(.x),\(.y),\(.width),\(.height),\(.y - .physical_y),\(if .is_main then 1 else 0 end)"' 2>/dev/null)
@@ -226,13 +233,12 @@ forget_display() {
 
 LAST_GEOM=""
 
-# ディスプレイごとに gap.top を計算して適用する。
-# バーの位置と高さを読む。
+# Read the bar position and height, used to compute gap.top per display.
 #
-# --reload 直後の sketchybar は設定を読み込み終えるまで既定値 (y_offset=0,
-# height=25) を返す。値として妥当なので「数値かどうか」では弾けない。実際それで
-# base を 0+25+8=33 と誤算し、gap が全ディスプレイでずれた。
-# 同じ値が続けて取れるまで待って、設定適用後の値であることを確かめる。
+# Right after --reload, sketchybar reports its defaults (y_offset=0, height=25)
+# until the configuration finishes loading. Those are plausible numbers, so a
+# range check cannot reject them. Wait until the same values come back twice to
+# be sure the configuration has been applied.
 sketchybar_bar_metrics() {
   local i out cur prev stable
   prev=""
@@ -258,31 +264,34 @@ sketchybar_bar_metrics() {
   return 1
 }
 
-# 主ディスプレイの inset を bar.lua へ渡す。
+# Hand the main display's inset to bar.lua.
 #
-# bar.lua は y_offset にこれを足す。足さないとメニューバー固定表示のときバーが
-# その裏に潜る。sketchybar の y_offset は全ディスプレイ共通なので主ディスプレイ
-# 基準でよい (NSScreen.mainScreen を見ていた頃と同じ基準)。
+# bar.lua adds it to y_offset; without it the bar hides behind the menu bar when
+# that is always visible. sketchybar's y_offset is shared by all displays, so
+# the main display is the right reference.
 #
-# bar.lua 側で OS を見に行かせない。yashiki の購読ペイロードから導いた値と
-# NSScreen から読んだ値の二系統になると、食い違ったときに原因を追えなくなる。
+# bar.lua must not consult the OS itself. Deriving the value from yashiki's
+# payload in one place and from NSScreen in another makes a disagreement
+# impossible to trace.
 #
-# ただしメニューバーが自動非表示のときは 0 を渡す。ノッチ帯はメニューバーを
-# 隠しても解放されないので予約量は 37 前後のまま残るが、バーはそこに置ける。
-# notch_width で items をノッチの左右に振る作りになっているし、実際そう描画される。
-# 予約量をそのまま渡すとバーがノッチ帯の下に落ち、上端 37px が死ぬ。
-# ウィンドウはバーの 8px 下に付いてくるので、まとめて下がってしまう。
+# When the menu bar auto-hides, hand over 0. macOS keeps reserving the notch
+# strip either way, but the bar can sit inside it: notch_width splits the items
+# around the notch, which is how it renders. Passing the reservation through
+# instead drops the bar below the strip and wastes the top 37px, and the windows
+# follow the bar down with it.
 #
-# 自動非表示なら予約量はまるごとノッチぶんなので、ノッチの大きさを別途知る必要はない。
-# 幾何だけで判定する手 (予約量 > safeAreaInsets.top) もあるが、ノッチ機では
-# メニューバー 38 対ノッチ 37.5 の 0.5pt 差しかなく、一致する機種があれば破綻する。
+# With the menu bar hidden the whole reservation is the notch, so there is no
+# need to know the notch height separately. Deciding from geometry alone
+# (reservation > safeAreaInsets.top) is possible but rests on a 0.5pt gap
+# between a 38pt menu bar and a 37.5pt notch, which need not hold on every
+# model.
 publish_main_inset() {
   local inset
-  # "id=x,y,w,h,inset,is_main" を = と , で割る -> $6=inset, $7=is_main
+  # split "id=x,y,w,h,inset,is_main" on = and , -> $6=inset, $7=is_main
   inset=$(printf '%s' "$DISPLAY_GEOM" | grep -v '^$' \
     | awk -F'[=,]' '$7 == 1 { print $6; exit }')
   case "$inset" in ''|*[!0-9]*) return 0 ;; esac
-  # キー未設定は macOS 既定の「表示」扱い
+  # An unset key means the macOS default, which is always visible
   if [ "$(defaults read NSGlobalDomain _HIHideMenuBar 2>/dev/null || echo 0)" = "1" ]; then
     inset=0
   fi
@@ -314,8 +323,8 @@ apply_outer_gaps() {
   done
 }
 
-# ジオメトリが変わったら gap を計算し直し、sketchybar を作り直す。
-# --reload はバーが一瞬消えるので、変わっていない回まで巻き込まない。
+# Recompute the gaps and rebuild sketchybar when the geometry changed.
+# --reload blanks the bar for a moment, so skip it when nothing moved.
 settle() {
   local geom
   geom=$(geom_signature)
@@ -326,26 +335,29 @@ settle() {
   fi
   LAST_GEOM="$geom"
   log "ジオメトリ変化 -> sketchybar --reload + gap 再計算"
-  # inset の受け渡しを先に。bar.lua は reload の中で読むので、書くのが後だと
-  # 一世代古い値でバーが置かれる。
+  # Publish the inset first: bar.lua reads it during the reload, so writing it
+  # afterwards would place the bar with the previous value.
   publish_main_inset
-  # 次に reload。gap は reload 後の y_offset から決まるので順序を逆にできない。
+  # Then reload. The gaps derive from the post-reload y_offset, so this order
+  # cannot be swapped.
   [ -x "$SKETCHYBAR" ] && "$SKETCHYBAR" --reload >/dev/null 2>&1 </dev/null
   apply_outer_gaps
   return 0
 }
 
-# 購読を1回張って、切れるまで読み続ける。
+# Open one subscription and read from it until it drops.
 #
-# プロセス置換を exec で fd 3 に繋ぐ。bash 3.2 でも $! に置換先の子 PID が入るので
-# 抜けるときに確実に始末できる。`done < <(...)` 形式だと子を掴めず、再購読のたびに
-# subscribe がリークして数十プロセス積み上がった。FIFO 経由も試したが、writer が
-# 生きているのに reader が即 EOF を受け取るため使えない。
+# Attach the process substitution to fd 3 with exec. Even on bash 3.2 that puts
+# the child pid in $!, so it can be cleaned up on the way out. With
+# `done < <(...)` the child cannot be reached and every reconnect leaks another
+# subscribe. A FIFO does not work either: the reader sees EOF immediately while
+# the writer is still alive.
 subscribe_once() {
   local events pending quiet line rc spins window structural need why
 
-  # --snapshot を付けると接続直後に全ディスプレイの状態が届く。これを基準にする
-  # ので、起動時に list-outputs を叩く必要も、構成が落ち着くのを待つ必要もない。
+  # --snapshot delivers every display's state on connect. That is the baseline,
+  # so there is no list-outputs call at startup and no waiting for the
+  # configuration to settle.
   exec 3< <("$YASHIKI" subscribe --snapshot --filter display 2>/dev/null </dev/null)
   SUB_PID=$!
 
@@ -364,14 +376,15 @@ subscribe_once() {
       [ -z "$line" ] && continue
       case "$(printf '%s' "$line" | jq -r '.type' 2>/dev/null)" in
         snapshot)
-          # 購読開始時の全状態。
+          # Full state at subscription time.
           #
-          # ここで settle まで走らせる。init は sketchybar を exec --track で
-          # 起動するだけで --reload しないので、これを省くと inset を書く前に
-          # 上がった sketchybar が前回値のままになる。
+          # Run settle here. init only starts sketchybar with exec --track and
+          # never reloads it, so without this a sketchybar that came up before
+          # the inset was written keeps the previous value.
           #
-          # sketchybar がまだ上がっていなくても apply_outer_gaps 側の
-          # sketchybar_bar_metrics が最大 4 秒粘るので、init が起動するのを待てる。
+          # sketchybar need not be up yet: sketchybar_bar_metrics inside
+          # apply_outer_gaps retries for up to four seconds, long enough for
+          # init to start it.
           absorb_snapshot "$line"
           log "snapshot を取り込み -> 初期化"
           LAST_GEOM=""
@@ -401,17 +414,17 @@ subscribe_once() {
       continue
     fi
 
-    # ここに来たら read が非ゼロ。タイムアウトか EOF かを戻り値で区別してはいけない。
-    # シェバンの /bin/bash は 3.2 で、read -t はタイムアウトでも 1 を返す
-    # （128 超を返すのは bash 4.0 以降）。3.2 で >128 を条件にすると毎秒の
-    # タイムアウトを EOF と誤判定し、1 秒ごとに購読を張り直してしまう。
-    # 子プロセスの生死で判定する。
+    # read returned non-zero. Do not use the return value to tell a timeout from
+    # EOF: the shebang's bash is 3.2, where read -t returns 1 on timeout as well
+    # (values above 128 arrived in bash 4.0). Testing for >128 on 3.2 mistakes
+    # every one-second timeout for EOF and reconnects once a second.
+    # Check whether the child is alive instead.
     if ! kill -0 "$SUB_PID" 2>/dev/null; then
       break
     fi
 
-    # 子は生きている = タイムアウト。ただしパイプだけ閉じた場合に read が
-    # 即座に返り続けて暴走しないよう、頻度が「1 秒に 1 回」から外れたら張り直す。
+    # Child alive, so this was a timeout. If only the pipe closed, read keeps
+    # returning immediately; reconnect once the rate departs from once a second.
     spins=$((spins + 1))
     if [ "$spins" -ge 10 ]; then
       if [ $(( $(date +%s) - window )) -lt 5 ]; then
@@ -464,13 +477,13 @@ back_off() {  # $1: ログに出す理由
 backoff=2
 fail_streak=0
 while true; do
-  # daemon が入れ替わっているかもしれないので毎回解決し直す
+  # Resolve again each round: the daemon may have been replaced
   YASHIKI=$(resolve_yashiki)
 
-  # daemon の生死を先に確かめる。
-  # 以前は「購読が 10 秒以上続いたら正常」でバックオフを戻していたが、daemon が
-  # 落ちていると subscribe の失敗自体に 10 秒前後かかるため判定が成立してしまい、
-  # 実質バックオフが効かず 10 秒間隔で subscribe を撒き続けていた。
+  # Check that the daemon is alive before subscribing.
+  # Resetting the backoff on "the subscription lasted ten seconds" does not
+  # work: with the daemon down, a failing subscribe takes about that long by
+  # itself, so the condition holds and the backoff never takes effect.
   if ! daemon_alive; then
     back_off "daemon に接続できない"
     continue
