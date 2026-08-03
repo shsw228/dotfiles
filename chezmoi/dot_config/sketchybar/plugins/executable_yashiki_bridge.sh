@@ -1,13 +1,13 @@
 #!/bin/bash
-# yashiki の state stream を購読し、sketchybar 側へ
+# Subscribes to yashiki's state stream and fires
 #   yashiki_workspace_change OUTPUT_{id}_ACTIVE_TAGS / _OCCUPIED_TAGS / _TAG_APPS_{1..10}
 #   yashiki_focus_change     FLOAT=true|false
 #   yashiki_mode_change      MODE=normal|resize
-# を発火するブリッジ。各ディスプレイの状態を独立に送る。
-# sketchybarrc から & 起動する常駐プロセス。
+# on the sketchybar side, reporting each display independently.
+# Long-running process, started with & from sketchybarrc.
 #
-# ここは翻訳だけを行う。yashiki に書き戻さないこと。borders の色替えとフォーカスの
-# 回復は ~/.config/yashiki/focus_watcher.sh の受け持ち。
+# Translation only. Never write back to yashiki. The borders colour and focus
+# recovery belong to ~/.config/yashiki/focus_watcher.sh.
 
 set -u
 
@@ -21,9 +21,10 @@ if ! command -v yashiki >/dev/null 2>&1; then
   exit 1
 fi
 
-# sketchybar 再起動で旧 bridge が残るのを防ぐため、自分以外の bridge を kill。
-# pgrep -f は ps -ax の COMMAND を正規表現でマッチするので、引数経由で "yashiki_bridge.sh"
-# を含むだけのプロセス (chezmoi apply 等) を巻き込まないよう、bash 実行パスを起点に絞り込む。
+# A sketchybar restart would otherwise leave the previous bridge behind, so kill
+# every bridge but this one. pgrep -f matches the whole COMMAND, so anchor the
+# pattern on the bash path; matching "yashiki_bridge.sh" anywhere would also hit
+# processes that merely mention it, such as chezmoi apply.
 SELF_PID=$$
 for pid in $(pgrep -f '^(/[^ ]*/)?bash .*/yashiki_bridge\.sh$'); do
   [ "$pid" = "$SELF_PID" ] && continue
@@ -32,7 +33,7 @@ done
 
 SKETCHYBAR="/opt/homebrew/bin/sketchybar"
 
-# 状態:
+# State:
 #   displays[id]=visible_tags
 #   windows[id]={tags, floating, app_id, output}
 #   focused=focused_display_id (string)
@@ -49,10 +50,10 @@ windows  = state.get("windows", {})
 
 lines = []
 for disp_id, vtags in displays.items():
-    # active = そのディスプレイの visible_tags
+    # active = visible_tags of the display
     lines.append(f"OUTPUT_{disp_id}_ACTIVE_TAGS={vtags}")
 
-    # occupied = そのディスプレイに存在する window の tags の和
+    # occupied = union of the tags of the windows on that display
     occupied = 0
     tag_apps = [[] for _ in range(10)]
     for win in windows.values():
@@ -122,8 +123,8 @@ process_event() {
       local wid
       wid=$(echo "$line" | jq -r '.window_id // "null"')
       if [ "$wid" = "null" ] || [ "$wid" = "0" ] || [ -z "$wid" ]; then
-        # focus が宙に浮いた。表示を更新する材料が無いので何もしない。
-        # 回復は focus_watcher.sh の受け持ち。
+        # Focus ended up nowhere. Nothing to display, so leave it.
+        # Recovery is focus_watcher.sh's job.
         :
       else
         STATE=$(echo "$STATE" | jq --arg wid "$wid" '.focused_window = $wid')

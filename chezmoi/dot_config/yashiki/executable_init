@@ -1,44 +1,44 @@
 #!/bin/sh
 # yashiki init script
-# 旧 AeroSpace 設定に手触りを寄せる構成。tags = AeroSpace の workspace 相当。
-# 元設定: ~/.config/aerospace/aerospace.toml
+# Shaped to feel like the previous AeroSpace setup. A tag here is an AeroSpace
+# workspace. Original config: ~/.config/aerospace/aerospace.toml
 
-# Homebrew を yashiki の exec パスに追加（borders などの呼び出し用）
+# Homebrew on yashiki's exec path, for borders and friends
 yashiki add-exec-path /opt/homebrew/bin
 
-##### レイアウトと余白 #####
+##### Layout and gaps #####
 yashiki layout-set-default tatami
-# top: sketchybar y_offset(8) + height(32) + 余白(8) = 48 (4の倍数で揃える)
-# ディスプレイごとの補正は display_watcher.sh が構成を見て当て直すので、ここは
-# ウォッチャーが動くまでの初期値。
+# top: sketchybar y_offset(8) + height(32) + margin(8) = 48, kept a multiple of 4.
+# Only an initial value: display_watcher.sh reads the configuration and applies
+# a per-display gap once it is running.
 yashiki set-outer-gap 48 12 12 12
 yashiki layout-cmd --layout tatami set-inner-gap 10
 # master:stack = 6:4
 yashiki layout-cmd --layout tatami set-main-ratio 0.6
 
-##### カーソル / フォーカス挙動 #####
-# 旧 on-focus-changed の "move-mouse window-lazy-center" 相当
+##### Cursor and focus behaviour #####
+# Equivalent of the old on-focus-changed "move-mouse window-lazy-center"
 yashiki set-cursor-warp on-focus-change
-# マウスホバーでのフォーカス追従は無効化（カーソル位置で勝手にアクティブにしない）
+# No focus-follows-mouse: hovering must not activate a window
 yashiki set-auto-raise disabled
 
-##### メニューバー #####
-# sketchybar 側で workspace 表示するので yashiki 内蔵バーは無効
+##### Menu bar #####
+# sketchybar shows the workspace, so the built-in indicator stays off
 yashiki set-menu-bar-status disabled
 
-##### 連携プロセス #####
-# 連携プロセスは yashiki から起動する。yashiki と同じプロセスグループに入るので、
-# クラッシュ時も launchd がまとめて落とす（LaunchAgent の AbandonProcessGroup は
-# 既定のまま）。brew services と併用すると単一インスタンスガードで衝突する。
+##### Companion processes #####
+# Start companions from yashiki so they share its process group; launchd then
+# takes them all down together, including on a crash (leave AbandonProcessGroup
+# at its default in the LaunchAgent). Running them from brew services as well
+# collides with their single-instance guard.
 yashiki exec --track "borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0"
 
-##### tag 切替バインド #####
-# yashiki 公式 Power User config に整合させた構成:
-#   alt-N        : tag N を単独表示（exclusive）
-#   alt-shift-N  : フォーカス中ウィンドウを tag N へ移動（誤配置の修正用）
-#   alt-ctrl-N   : フォーカス中ウィンドウの tag N 所属をトグル。
-#                  追加方向 (まだ所属していない) のときは view も追従、
-#                  削除方向のときは view 据置。 (wrapper toggle_tag.sh)
+##### Tag bindings #####
+# Follows yashiki's official Power User config:
+#   alt-N        : view tag N exclusively
+#   alt-shift-N  : move the focused window to tag N, for fixing misplacements
+#   alt-ctrl-N   : toggle the focused window's membership of tag N. Adding also
+#                  follows the view; removing leaves it. (wrapper toggle_tag.sh)
 TOGGLE_TAG_SH="${HOME}/.config/yashiki/toggle_tag.sh"
 for i in 1 2 3 4 5 6 7 8 9; do
   bit=$((1 << (i - 1)))
@@ -50,37 +50,37 @@ yashiki bind "alt-0"       tag-view           "$((1 << 9))"
 yashiki bind "alt-shift-0" window-move-to-tag "$((1 << 9))"
 yashiki bind "alt-ctrl-0"  exec               "$TOGGLE_TAG_SH $((1 << 9))"
 
-# tag back-and-forth（前回 view 復元）
+# Tag back-and-forth, restores the previous view
 yashiki bind alt-tab tag-view-last
 
-##### ウィンドウフォーカス (旧 alt-h/j/k/l) #####
+##### Window focus (was alt-h/j/k/l) #####
 yashiki bind alt-h window-focus left
 yashiki bind alt-j window-focus down
 yashiki bind alt-k window-focus up
 yashiki bind alt-l window-focus right
 
-##### ウィンドウスワップ (旧 alt-shift-h/j/k/l = move) #####
+##### Window swap (was alt-shift-h/j/k/l = move) #####
 yashiki bind alt-shift-h window-swap left
 yashiki bind alt-shift-j window-swap down
 yashiki bind alt-shift-k window-swap up
 yashiki bind alt-shift-l window-swap right
 
-##### モニタ操作（yashiki 公式 Power User 準拠） #####
-yashiki bind alt-o       output-focus next   # フォーカスを次モニタへ
-yashiki bind alt-shift-o output-send  next   # フォーカス中ウィンドウを次モニタへ送る
+##### Monitors, per yashiki's Power User config #####
+yashiki bind alt-o       output-focus next   # focus the next monitor
+yashiki bind alt-shift-o output-send  next   # send the focused window there
 
-##### スクリーンショット (旧 alt-shift-s) #####
+##### Screenshot (was alt-shift-s) #####
 yashiki bind alt-shift-s exec "screencapture -i -c"
 
-##### レイアウト/フロート操作 (旧 alt-f / alt-space) #####
+##### Layout and float (was alt-f / alt-space) #####
 yashiki bind alt-f window-toggle-fullscreen
 yashiki bind alt-space window-toggle-float
-# フォーカス中ウィンドウを master 領域に昇格 (元の master は stack に降格)
+# Promote the focused window to master; the old master drops to the stack
 yashiki bind alt-z layout-cmd zoom
 
-##### resize モード (旧 alt-r → mode resize) #####
-# tatami は master-stack なので h/l で main-ratio、j/k で main-count を調整。
-# main-count は wrapper 経由で sketchybar へ通知。
+##### resize mode (was alt-r) #####
+# tatami is master-stack, so h/l adjust main-ratio and j/k adjust main-count.
+# main-count is reported to sketchybar through a wrapper.
 MAIN_COUNT_SH="${HOME}/.config/yashiki/main_count.sh"
 yashiki declare-mode resize
 yashiki bind alt-r enter-mode resize
@@ -91,14 +91,14 @@ yashiki bind --mode resize k exec "$MAIN_COUNT_SH inc"
 yashiki bind --mode resize return enter-mode normal
 yashiki bind --mode resize escape enter-mode normal
 
-# normal モードでも一発で main-count を増減できるショートカット
+# Same adjustment without entering the mode
 yashiki bind alt-comma  exec "$MAIN_COUNT_SH dec"
 yashiki bind alt-period exec "$MAIN_COUNT_SH inc"
 
-# 起動直後に現在値を sketchybar へ通知 (初回表示用)
+# Push the current value to sketchybar so it has something to show at startup
 yashiki exec "$MAIN_COUNT_SH notify"
 
-##### ウィンドウルール (旧 on-window-detected) #####
+##### Window rules (was on-window-detected) #####
 # tag bitmask: 1=1, 2=2, 3=4, 4=8
 
 # Browser → tag 1
@@ -108,7 +108,7 @@ yashiki rule-add --app-id net.imput.helium tags 1
 # Terminal → tag 2
 yashiki rule-add --app-id com.mitchellh.ghostty tags 2
 yashiki rule-add --app-id com.apple.Terminal tags 2
-# Ghostty Quick Terminal (cmd-, で出るスライドダウン) は yashiki 管理対象外にする
+# Ghostty's Quick Terminal slides down over everything; leave it unmanaged
 yashiki rule-add --ax-id com.mitchellh.ghostty.quickTerminal ignore
 
 # Xcode + iOS Simulator → tag 3
@@ -118,24 +118,24 @@ yashiki rule-add --app-id com.apple.iphonesimulator tags 4
 # AI / codex → tag 4
 yashiki rule-add --app-id com.openai.codex tags 8
 
-# Music → tag 10 (alt-0)、外部モニタが接続されてればMacBook本体側へ
+# Music goes to tag 10 (alt-0), on the built-in display when one is attached
 yashiki rule-add --app-id com.apple.Music tags 512
 yashiki rule-add --app-id com.apple.Music output "Built-in"
 
-# System Settings は programmatic resize を拒否するため float 扱い
+# System Settings refuses programmatic resize, so float it
 yashiki rule-add --app-id com.apple.systempreferences float
 
-# Wi-Fi キャプティブポータル（Captive Network Assistant）は短命な補助 window なので無視
+# The Wi-Fi captive portal is a short-lived helper window
 yashiki rule-add --app-id com.apple.CaptiveNetworkAssistant ignore
 
-# 共通: 非通常ウィンドウ（パレット類）は管理対象から外す
+# Non-normal windows such as palettes are not ours to manage
 yashiki rule-add --window-level other ignore
-# popup / dropdown / tooltip 等の close ボタンを持たない補助 window は無視
+# Helper windows without a close button: popups, dropdowns, tooltips
 yashiki rule-add --close-button none ignore
-# 役割不明の補助 window（Chromeのautocomplete等）も無視
+# Helpers with no declared role, such as Chrome's autocomplete
 yashiki rule-add --subrole AXUnknown ignore
 
-# 補助系アプリは tile 対象から外す
+# Utility apps are never tiled
 yashiki rule-add --app-id pro.betterdisplay.BetterDisplay ignore
 yashiki rule-add --app-id com.pointum.hazeover ignore
 yashiki rule-add --app-name borders ignore
@@ -143,20 +143,21 @@ yashiki rule-add --app-name sketchybar ignore
 yashiki rule-add --app-id com.raycast.macos ignore
 yashiki rule-add --app-id com.knollsoft.Hookshot ignore
 
-##### ディスプレイ構成の追従 #####
-# 構成が変わったら sketchybar を作り直し、ディスプレイごとに outer-gap を当て直す。
-# sketchybar は item 構成を起動時の display 構成から決めるため、抜き差しや
-# メニューバー表示の切替では reload が要る。
+##### Following display configuration #####
+# Rebuild sketchybar and re-apply the per-display outer gap whenever the
+# configuration changes. sketchybar derives its item layout from the display
+# configuration at startup, so hotplugs and menu bar changes need a reload.
 DISPLAY_WATCHER_SH="${HOME}/.config/yashiki/display_watcher.sh"
 [ -x "$DISPLAY_WATCHER_SH" ] && "$DISPLAY_WATCHER_SH" >/dev/null 2>&1 &
 
-##### フォーカスの追従 #####
-# borders の枠色を floating / tiling で切り替え、フォーカスが宙に浮いたら回復する。
-# yashiki にイベントフックは無いので、subscribe する常駐プロセスで受ける。
+##### Following focus #####
+# Switch the borders frame colour between floating and tiling, and restore
+# focus when it ends up nowhere. yashiki has no event hooks, so a long-running
+# subscriber handles it.
 FOCUS_WATCHER_SH="${HOME}/.config/yashiki/focus_watcher.sh"
 [ -x "$FOCUS_WATCHER_SH" ] && "$FOCUS_WATCHER_SH" >/dev/null 2>&1 &
 
 ##### sketchybar #####
-# init の最後に起動する。bridge と list-outputs が live な yashiki を必要とするため、
-# 設定とウォッチャーが揃ってからでないと掴み損ねる。
+# Started last. The bridge and list-outputs need a live yashiki, so they would
+# miss it unless the configuration and the watchers are already in place.
 yashiki exec --track "sketchybar"
