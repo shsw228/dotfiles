@@ -27,9 +27,9 @@ yashiki set-auto-raise disabled
 yashiki set-menu-bar-status disabled
 
 ##### 連携プロセス #####
-# JankyBorders を yashiki に紐づけて起動。
-# brew services では起動しないこと。二重起動になると単一インスタンスガードで
-# こちら側が即死し、tracked_processes に死んだ pid が残る。
+# 連携プロセスは yashiki から起動する。yashiki と同じプロセスグループに入るので、
+# クラッシュ時も launchd がまとめて落とす（LaunchAgent の AbandonProcessGroup は
+# 既定のまま）。brew services と併用すると単一インスタンスガードで衝突する。
 yashiki exec --track "borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0"
 
 ##### tag 切替バインド #####
@@ -143,27 +143,20 @@ yashiki rule-add --app-name sketchybar ignore
 yashiki rule-add --app-id com.raycast.macos ignore
 yashiki rule-add --app-id com.knollsoft.Hookshot ignore
 
-##### ディスプレイ構成変更時の sketchybar 作り直し #####
-# sketchybar は item 構成を起動時の display 構成から決めているため、抜き差しや
-# メニューバー表示の変更があると作り直しが要る。本体の display_change イベントは
-# アクティブディスプレイの切り替えでも飛んでフォーカス移動のたびに再構築されて
-# しまうので、yashiki の display イベントを購読する常駐ウォッチャーに任せる。
-# 上の set-outer-gap は全ディスプレイ共通の初期値でしかないので、構成を見た
-# ディスプレイごとの当て直しもウォッチャーが受け持つ。
-# バックグラウンドで走らせ、init 自体はブロックしない。
+##### ディスプレイ構成の追従 #####
+# 構成が変わったら sketchybar を作り直し、ディスプレイごとに outer-gap を当て直す。
+# sketchybar は item 構成を起動時の display 構成から決めるため、抜き差しや
+# メニューバー表示の切替では reload が要る。
 DISPLAY_WATCHER_SH="${HOME}/.config/yashiki/display_watcher.sh"
 [ -x "$DISPLAY_WATCHER_SH" ] && "$DISPLAY_WATCHER_SH" >/dev/null 2>&1 &
 
+##### フォーカスの追従 #####
+# borders の枠色を floating / tiling で切り替え、フォーカスが宙に浮いたら回復する。
+# yashiki にイベントフックは無いので、subscribe する常駐プロセスで受ける。
+FOCUS_WATCHER_SH="${HOME}/.config/yashiki/focus_watcher.sh"
+[ -x "$FOCUS_WATCHER_SH" ] && "$FOCUS_WATCHER_SH" >/dev/null 2>&1 &
+
 ##### sketchybar #####
-# sketchybar も yashiki に紐づけて起動する。init のここまでが終わってから上がるので、
-# bridge (yashiki_bridge.sh) と list-outputs は必ず live な yashiki を掴む。
-# brew services に任せると起動順が競合し、sketchybar が先に上がった回だけ
-# workspace 表示が壊れていた。
-#
-# プロセスグループが yashiki と同じになるので、yashiki がクラッシュしたときも
-# launchd がまとめて落とす（LaunchAgent 側で AbandonProcessGroup を既定のままに
-# しておくこと）。中途半端に bar だけ生き残る状態を作らない。
-#
-# bar.lua が読む inset は display_watcher.sh が上で書いている。取りこぼしても
-# ウォッチャーが snapshot 受信時に reload するので追いつく。
+# init の最後に起動する。bridge と list-outputs が live な yashiki を必要とするため、
+# 設定とウォッチャーが揃ってからでないと掴み損ねる。
 yashiki exec --track "sketchybar"
