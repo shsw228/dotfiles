@@ -33,6 +33,8 @@ brew "neovim"
 brew "nixfmt"
 brew "node"
 brew "pnpm"
+# yashiki-bridge を apply 時にビルドするため (run_onchange_14)
+brew "rust"
 brew "sheldon"
 brew "starship"
 brew "tree-sitter"

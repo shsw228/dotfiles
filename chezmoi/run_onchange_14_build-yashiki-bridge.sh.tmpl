@@ -1,0 +1,40 @@
+#!/bin/sh
+# yashiki の状態ストリームを sketchybar のイベントに変換する yashiki-bridge を
+# ビルドして ~/.local/bin に入れる。バイナリはコミットせず apply 時に作る。
+#
+# クレートを変更したときだけ再実行されるよう、ソースのハッシュを埋め込んでおく。
+# main.rs hash:    {{ include "yashiki-bridge/src/main.rs" | sha256sum }}
+# Cargo.toml hash: {{ include "yashiki-bridge/Cargo.toml" | sha256sum }}
+# Cargo.lock hash: {{ include "yashiki-bridge/Cargo.lock" | sha256sum }}
+set -eu
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+if command -v cargo >/dev/null 2>&1; then
+  cargo_cmd="$(command -v cargo)"
+elif [ -x /opt/homebrew/bin/cargo ]; then
+  cargo_cmd="/opt/homebrew/bin/cargo"
+elif [ -x "${HOME}/.cargo/bin/cargo" ]; then
+  cargo_cmd="${HOME}/.cargo/bin/cargo"
+else
+  # Brewfile の rust は run_onchange_10 で入る。まだ無いなら次の apply に回す。
+  echo "yashiki-bridge: cargo が無いのでビルドを飛ばす" >&2
+  exit 0
+fi
+
+crate="{{ .chezmoi.sourceDir }}/yashiki-bridge"
+
+"$cargo_cmd" build --release --locked --manifest-path "${crate}/Cargo.toml"
+
+mkdir -p "${HOME}/.local/bin"
+install -m 755 "${crate}/target/release/yashiki-bridge" "${HOME}/.local/bin/yashiki-bridge"
+
+# 走っている bridge は古いバイナリのまま。起動は sketchybar の items/init.lua が
+# 持っているので、reload させて入れ替える (新しい bridge が旧世代を終了させる)。
+if command -v sketchybar >/dev/null 2>&1; then
+  sketchybar --reload
+elif [ -x /opt/homebrew/bin/sketchybar ]; then
+  /opt/homebrew/bin/sketchybar --reload
+fi
