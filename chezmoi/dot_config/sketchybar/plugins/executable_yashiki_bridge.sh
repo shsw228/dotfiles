@@ -2,8 +2,12 @@
 # yashiki の state stream を購読し、sketchybar 側へ
 #   yashiki_workspace_change OUTPUT_{id}_ACTIVE_TAGS / _OCCUPIED_TAGS / _TAG_APPS_{1..10}
 #   yashiki_focus_change     FLOAT=true|false
+#   yashiki_mode_change      MODE=normal|resize
 # を発火するブリッジ。各ディスプレイの状態を独立に送る。
 # sketchybarrc から & 起動する常駐プロセス。
+#
+# ここは翻訳だけを行う。yashiki に書き戻さないこと。borders の色替えとフォーカスの
+# 回復は ~/.config/yashiki/focus_watcher.sh の受け持ち。
 
 set -u
 
@@ -27,39 +31,6 @@ for pid in $(pgrep -f '^(/[^ ]*/)?bash .*/yashiki_bridge\.sh$'); do
 done
 
 SKETCHYBAR="/opt/homebrew/bin/sketchybar"
-BORDERS="/opt/homebrew/bin/borders"
-YASHIKI="/opt/homebrew/bin/yashiki"
-
-# メニューが開いているか。layer 101 は kCGPopUpMenuWindowLevel で、メニューバーの
-# メニューもコンテキストメニューもここに出る。
-#
-# ObjC.deepUnwrap は CGWindowListCopyWindowInfo の戻り値を解けない ([object Ref] に
-# なる) ので bindFunction で直接叩く。実測 64ms。呼ぶのは focus 失効時だけなので
-# 常駐コストにはならない。
-popup_menu_open() {
-  /usr/bin/osascript -l JavaScript <<'JXA' 2>/dev/null | grep -q '^1$'
-ObjC.bindFunction('CGWindowListCopyWindowInfo', ['id', ['unsigned int', 'unsigned int']]);
-var list = $.CGWindowListCopyWindowInfo(1, 0);
-var found = 0;
-for (var i = 0; i < $.CFArrayGetCount(list); i++) {
-  var d = ObjC.castRefToObject($.CFArrayGetValueAtIndex(list, i));
-  var lv = d.objectForKey('kCGWindowLayer');
-  if (!lv.isNil() && lv.intValue >= 101) { found = 1; break; }
-}
-String(found);
-JXA
-}
-
-# borders は yashiki から exec --track 起動。focus変更時に色を切替えるため
-# 旧 aerospace 設定にあった floating=オレンジ / tiling=白 のロジックを復元。
-update_borders() {
-  local floating="$1"
-  if [ "$floating" = "true" ]; then
-    "$BORDERS" active_color=0xfff5a97f inactive_color=0xff494d64 width=5.0 2>/dev/null &
-  else
-    "$BORDERS" active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0 2>/dev/null &
-  fi
-}
 
 # 状態:
 #   displays[id]=visible_tags
@@ -116,7 +87,6 @@ trigger_focus() {
   local floating
   floating=$(echo "$STATE" | jq -r '.windows[.focused_window].floating // false')
   "$SKETCHYBAR" --trigger yashiki_focus_change FLOAT="$floating" 2>/dev/null
-  update_borders "$floating"
 }
 
 process_snapshot() {
@@ -152,18 +122,9 @@ process_event() {
       local wid
       wid=$(echo "$line" | jq -r '.window_id // "null"')
       if [ "$wid" = "null" ] || [ "$wid" = "0" ] || [ -z "$wid" ]; then
-        # focus が失効した (主に新規 window 作成直後)。alt-hjkl 等が効かなくなる
-        # ため window-focus next で focus を回復する。
-        #
-        # ただしメニューが開いているときは触らない。Amphetamine のような
-        # ウィンドウを持たないメニューバー常駐アプリのアイコンを押すと、AX が
-        # focused_window を返せず (-25212) focus が失効した扱いになる。ここで
-        # window-focus を打つと別アプリが activate してメニューが即座に閉じる。
-        if popup_menu_open; then
-          :
-        else
-          "$YASHIKI" window-focus next 2>/dev/null &
-        fi
+        # focus が宙に浮いた。表示を更新する材料が無いので何もしない。
+        # 回復は focus_watcher.sh の受け持ち。
+        :
       else
         STATE=$(echo "$STATE" | jq --arg wid "$wid" '.focused_window = $wid')
         trigger_focus
@@ -191,14 +152,9 @@ process_event() {
       "$SKETCHYBAR" --trigger yashiki_mode_change MODE="$mode" 2>/dev/null
       ;;
     window_destroyed)
-      local wid focused
+      local wid
       wid=$(echo "$line" | jq -r '.window_id')
       STATE=$(echo "$STATE" | jq --arg wid "$wid" 'del(.windows[$wid])')
-      # destroyed なのが focused window だったら yashiki に focus 回復させる
-      focused=$("$YASHIKI" focused-window 2>/dev/null)
-      if [ -z "$focused" ] || [ "$focused" = "$wid" ]; then
-        "$YASHIKI" window-focus next 2>/dev/null &
-      fi
       trigger_workspace
       trigger_focus
       ;;
