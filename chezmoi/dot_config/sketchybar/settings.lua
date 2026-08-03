@@ -11,6 +11,11 @@ end
 
 return {
   paddings = 3,
+  -- 入れ子の角丸を余白から導出するため、bar.lua と styles.lua で共有する
+  bar = {
+    height = 32,
+    corner_radius = 10,
+  },
   font = {
     text  = "Monaspace Neon",
     icons = "Monaspace Neon",

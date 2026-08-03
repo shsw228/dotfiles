@@ -8,14 +8,14 @@ local main_count = sbar.add("item", "yashiki_main_count", {
   position = "left",
   icon = {
     string = "M",
-    color  = colors.grey,
+    color  = colors.fg_dim,
     padding_left  = 6,
     padding_right = 2,
     font = { family = "Monaspace Neon", style = "Bold", size = 11.0 },
   },
   label = {
     string = "1",
-    color  = colors.white,
+    color  = colors.fg,
     padding_left  = 2,
     padding_right = 6,
     font = { family = "Monaspace Neon", style = "Bold", size = 11.0 },

@@ -6,4 +6,11 @@ PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 export PATH
 
 CONFIG_DIR="${HOME}/.config/sketchybar"
+
+# --reload しても前の設定プロセスが生き残り、イベント購読を握ったままになる。
+# 放置すると 1 イベントで世代ぶんのハンドラが走り、--reload するハンドラでは
+# リロードと世代が増殖する (実測: 外観切替 1 回で 16 世代)。
+# lua 起動前なので、消える対象は前の世代だけ。
+pkill -f "^lua ${CONFIG_DIR}/init\.lua$" 2>/dev/null || true
+
 exec lua "${CONFIG_DIR}/init.lua"

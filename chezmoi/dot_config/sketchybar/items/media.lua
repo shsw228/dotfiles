@@ -2,6 +2,7 @@ local sbar = require("sketchybar")
 local colors = require("colors")
 local icons = require("icons")
 local displays = require("displays")
+local styles = require("styles")
 
 -- ウィジェット仕様:
 --   full mode (外部モニタ): "title — artist"
@@ -19,21 +20,21 @@ local function make_media_item(name, display_idx)
     associated_display = display_idx,
     icon = {
       string = icons.media.note,
-      color  = colors.grey,
+      color  = colors.fg_dim,
       padding_left  = 8,
       padding_right = 4,
     },
     label = {
-      color = colors.white,
+      color = colors.fg,
       padding_right = 8,
       max_chars = 24,
       scroll_duration = 180,
     },
     scroll_texts = true,
     background = {
-      color = colors.bg1,
-      height = 22,
-      corner_radius = 6,
+      color = colors.surface_raised,
+      height = styles.control.height,
+      corner_radius = styles.control.corner_radius,
     },
     updates = true,
     update_freq = 5,
@@ -61,9 +62,9 @@ local function add_renderer(item, mode)
     if current_state == "playing" then
       icon_str, icon_color = icons.media.playing, colors.magenta
     elseif current_state == "paused" then
-      icon_str, icon_color = icons.media.paused, colors.grey
+      icon_str, icon_color = icons.media.paused, colors.fg_dim
     else
-      icon_str, icon_color = icons.media.note, colors.grey
+      icon_str, icon_color = icons.media.note, colors.fg_dim
     end
 
     item:set({

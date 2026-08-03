@@ -6,12 +6,12 @@ local battery = sbar.add("item", "battery", {
   position = "right",
   icon = {
     string = icons.battery["100"],
-    color  = colors.white,
+    color  = colors.fg,
     padding_left  = 8,
     padding_right = 4,
   },
   label = {
-    color = colors.white,
+    color = colors.fg,
     padding_right = 8,
   },
   drawing = false,
@@ -40,7 +40,7 @@ local function refresh()
     end
 
     local color
-    if pct >= 30 then color = colors.white
+    if pct >= 30 then color = colors.fg
     elseif pct >= 15 then color = colors.yellow
     else color = colors.red
     end

@@ -29,9 +29,9 @@ local CLICK_MUTE = [[osascript -e 'set volume output muted (not (output muted of
 local function make_audio_item(name, display_idx, simple)
   local label_props
   if simple then
-    label_props = { color = colors.white, padding_right = 8, width = 40, align = "right" }
+    label_props = { color = colors.fg, padding_right = 8, width = 40, align = "right" }
   else
-    label_props = { color = colors.white, padding_right = 8, max_chars = 24 }
+    label_props = { color = colors.fg, padding_right = 8, max_chars = 24 }
   end
   local item = sbar.add("item", name, {
     position = "right",

@@ -13,7 +13,7 @@ local front = sbar.add("item", "front_app", {
   },
   label = {
     string = "",
-    color  = colors.white,
+    color  = colors.fg,
     padding_left  = 4,
     padding_right = 8,
     max_chars = 28,

@@ -10,15 +10,15 @@ local mode_item = sbar.add("item", "yashiki_mode", {
   icon = { drawing = false, padding_left = 0, padding_right = 0 },
   label = {
     string = "",
-    color = colors.black,
+    color = colors.on_accent,
     padding_left  = 8,
     padding_right = 8,
     font = { family = "Monaspace Neon", style = "Bold", size = 11.0 },
   },
   background = {
     color = colors.orange,
-    corner_radius = 6,
-    height = 22,
+    corner_radius = styles.control.corner_radius,
+    height = styles.control.height,
   },
   popup = {
     align = "center",
@@ -53,7 +53,7 @@ for i = 1, POPUP_ROWS do
     label = {
       string = "",
       font = { family = "Monaspace Neon", style = "Regular", size = 15.0 },
-      color = colors.white,
+      color = colors.fg,
       padding_left  = 14,
       padding_right = 14,
       align = "left",
