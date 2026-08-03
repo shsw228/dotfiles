@@ -5,34 +5,51 @@ on:
   push:
     branches:
       - main
+  # The scheduled run installs the newest chezmoi instead of the pinned one, so
+  # an incompatible release shows up here rather than on someone's push.
+  schedule:
+    - cron: "0 0 * * 1"
+
+env:
+  # Pinned so a chezmoi release cannot fail a push on its own. Bump when the
+  # scheduled run goes red, or when a newer version is needed.
+  CHEZMOI_VERSION: v2.72.0
 
 jobs:
   validate:
-    runs-on: macos-latest
+    # Pinned rather than macos-latest: an image switch changes the macOS version
+    # underneath, which these scripts are sensitive to.
+    runs-on: macos-26
     env:
       CHEZMOI_CI: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Keyed on the version, so the cache cannot serve a different one.
+      # Skipped on the scheduled run, which wants whatever is newest.
       - name: Cache chezmoi
+        if: github.event_name != 'schedule'
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.local/bin/chezmoi
-            ~/.cache/chezmoi
-          key: ${{ runner.os }}-chezmoi-${{ hashFiles('.github/workflows/chezmoi-check.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-chezmoi-
+          path: ~/.local/bin/chezmoi
+          key: ${{ runner.os }}-chezmoi-${{ env.CHEZMOI_VERSION }}
 
       - name: Install chezmoi
         run: |
           if [ ! -x "$HOME/.local/bin/chezmoi" ]; then
-            sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+            else
+              sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" -t "$CHEZMOI_VERSION"
+            fi
           fi
 
       - name: Add chezmoi to PATH
         run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Show chezmoi version
+        run: chezmoi --version
 
       - name: Render personal profile config
         run: |
@@ -109,6 +126,13 @@ jobs:
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_50_set-ssh-auth-sock.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_60_finalize-ssh-remote.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_init"
+          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_display_watcher.sh"
+          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_focus_watcher.sh"
+          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_toggle_tag.sh"
+          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_main_count.sh"
+          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/sketchybar/executable_sketchybarrc"
+          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/sketchybar/plugins/executable_yashiki_bridge.sh"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zprofile"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshenv"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshrc"
