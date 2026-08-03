@@ -20,7 +20,7 @@ local system = sbar.add("item", "system", {
   -- icon は非表示。padding を 0 にして空のスペースが残らないようにする
   icon = { drawing = false, padding_left = 0, padding_right = 0 },
   label = {
-    color = colors.white,
+    color = colors.fg,
     padding_left  = 8,
     padding_right = 8,
   },
@@ -30,7 +30,7 @@ local system = sbar.add("item", "system", {
 local function color_for(pct)
   if pct >= 90 then return colors.red
   elseif pct >= 70 then return colors.yellow
-  else return colors.white
+  else return colors.fg
   end
 end
 
