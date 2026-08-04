@@ -1,0 +1,37 @@
+#!/bin/sh
+# brew bundle が herdr のバイナリだけを差し替えると、走っているサーバは旧 protocol の
+# ままになり、新しいクライアントが繋げなくなる。.zshrc は起動時に exec herdr するので、
+# そうなると新規ターミナルが全部即エラーになる (実測: client 19 / server 17)。
+#
+# herdr は Homebrew 管理下だと自己更新せず待機する ("available through Homebrew,
+# waiting for explicit install")。一方でペインを生かしたままサーバを差し替える
+# live-handoff を持っているので、ずれていたらそれを使う。
+#
+# 失敗しても server stop はしない。ペイン内のプロセスが落ちるため、そこは人の判断に回す。
+set -eu
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+if ! command -v herdr >/dev/null 2>&1; then
+  exit 0
+fi
+
+# 読み取りだけのコマンドで様子を見る。サーバ未起動なら server_not_running が返るので
+# 何もしない。
+probe="$(herdr workspace list 2>&1 || true)"
+case "$probe" in
+  *protocol_mismatch*) ;;
+  *) exit 0 ;;
+esac
+
+echo "herdr: サーバが旧 protocol のままです。live-handoff で差し替えます。" >&2
+if herdr server live-handoff >/dev/null 2>&1; then
+  echo "herdr: live-handoff 完了。" >&2
+else
+  echo "herdr: live-handoff に失敗しました。ペインを落とさないため自動では止めません。" >&2
+  echo "       herdr の外 (open -na Ghostty --env HERDR_AUTOSTART=0) で次を実行してください。" >&2
+  echo "       ペイン内のプロセスは落ちます。" >&2
+  echo '         HERDR_SOCKET_PATH="$HOME/.config/herdr/herdr.sock" herdr server stop' >&2
+fi

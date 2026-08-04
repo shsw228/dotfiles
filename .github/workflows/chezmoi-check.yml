@@ -128,6 +128,7 @@ jobs:
         run: |
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_00_install-homebrew.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_10_install-homebrew-packages.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_11_herdr-server-handoff.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_14_build-yashiki-bridge.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
