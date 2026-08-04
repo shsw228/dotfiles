@@ -72,8 +72,9 @@ end
 
 -- active は accent の塗りつぶし、occupied は fg、空きは fg_faint。
 -- active だけ塗りで分けるのは、階調3段では隣接状態を見分けられないため。
+-- weight は状態で変えない。font の切り替えは補間できず、字形が瞬間的に飛んで
+-- チラつきに見える。区別は色とリングだけで付ける。
 local label_font = { family = settings.font.text, style = "Semibold", size = 12.0 }
-local label_font_active = { family = settings.font.text, style = "Bold", size = 12.0 }
 
 -- 切り替えは色を補間してクロスフェードさせる。background.drawing の on/off は
 -- 補間できないので、pill は常に描画したまま alpha 0 と accent の間を動かす。
@@ -132,6 +133,9 @@ for _, out in ipairs(outputs) do
       click_script = YASHIKI .. " tag-view --output " .. yid .. " " .. bitmask,
     })
 
+    -- 直前に入れた値。同じ値の入れ直しを避ける
+    local last_icon, last_label_color, last_fill
+
     item:subscribe("yashiki_workspace_change", function(env)
       local active   = tonumber(env[active_key])   or 0
       local occupied = tonumber(env[occupied_key]) or 0
@@ -146,42 +150,45 @@ for _, out in ipairs(outputs) do
       -- 複数のときはこの item の塗りがセルを覆うので on_accent。
       local owns_fill = is_active and single_active_tag(active) == nil
 
-      local label_color, icon_color, font
+      local label_color, icon_color
       if is_active then
         label_color = owns_fill and colors.on_accent or colors.accent
         icon_color  = owns_fill and colors.on_accent or colors.accent
-        font        = label_font_active
       elseif is_occupied then
         label_color = colors.fg
         icon_color  = colors.fg
-        font        = label_font
       else
         label_color = colors.fg_faint
         icon_color  = colors.fg_faint
-        font        = label_font
       end
 
-      -- アイコンの出入りと font は補間できず幅も動くので、色だけを animate に包む。
-      item:set({
-        icon = {
-          string  = icon_str,
-          drawing = has_icon,
-          padding_left  = has_icon and 8 or 0,
-          padding_right = has_icon and 2 or 0,
-        },
-        label = {
-          font = font,
-          padding_left = has_icon and 2 or 8,
-        },
-      })
-
-      sbar.animate(ANIM_CURVE, ANIM_DURATION, function()
+      -- アイコンの出入りは補間できず幅も動くので、変わったときだけ触る。
+      -- 毎イベント同じ文字列を入れ直すと再描画が走る。
+      if icon_str ~= last_icon then
+        last_icon = icon_str
         item:set({
-          background = { color = owns_fill and colors.accent or ACCENT_HIDDEN },
-          icon  = { color = icon_color },
-          label = { color = label_color },
+          icon = {
+            string  = icon_str,
+            drawing = has_icon,
+            padding_left  = has_icon and 8 or 0,
+            padding_right = has_icon and 2 or 0,
+          },
+          label = { padding_left = has_icon and 2 or 8 },
         })
-      end)
+      end
+
+      -- 色だけ補間する。同じ色なら何もしない。
+      local fill = owns_fill and colors.accent or ACCENT_HIDDEN
+      if label_color ~= last_label_color or fill ~= last_fill then
+        last_label_color, last_fill = label_color, fill
+        sbar.animate(ANIM_CURVE, ANIM_DURATION, function()
+          item:set({
+            background = { color = fill },
+            icon  = { color = icon_color },
+            label = { color = label_color },
+          })
+        end)
+      end
     end)
   end
 
@@ -198,7 +205,6 @@ return {
   outputs = outputs,
   tags = tags,
   single_active_tag = single_active_tag,
-  label_font_active = label_font_active,
   anim = { curve = ANIM_CURVE, duration = ANIM_DURATION },
   accent_hidden = ACCENT_HIDDEN,
 }
