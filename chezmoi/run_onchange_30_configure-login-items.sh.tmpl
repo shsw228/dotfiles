@@ -3,8 +3,9 @@ set -eu
 
 osascript <<'APPLESCRIPT' >/dev/null 2>&1 || true
 tell application "System Events"
-  if not (exists login item "Raycast") then
-    make new login item at end with properties {name:"Raycast", path:"/Applications/Raycast.app", hidden:false}
+  -- Raycast は使わなくなった。残っていると存在しないアプリを起動しようとする。
+  if exists login item "Raycast" then
+    delete login item "Raycast"
   end if
 
   -- Yashiki はログイン項目では起動しない（下の LaunchAgent で管理）。
