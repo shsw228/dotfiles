@@ -11,6 +11,8 @@ sbar.add("event", "volume_state_refresh")
 local styles = require("styles")
 
 -- 左側の並び (左→右): tag | front_app | yashiki_mode | yashiki_main_count
+-- リングの土台はタグ item より先に追加して、数字の下のレイヤに置く
+require("items.yashiki_ring_anchor")
 require("items.yashiki")
 
 -- tag 群とアプリ情報群の面を離すためのダミー item。どちらの bracket にも入れない。
