@@ -43,7 +43,7 @@ local label_font = { family = settings.font.text, style = "Semibold", size = 12.
 -- 切り替えは色を補間してクロスフェードさせる。background.drawing の on/off は
 -- 補間できないので、pill は常に描画したまま alpha 0 と accent の間を動かす。
 local ANIM_CURVE    = "sin"
-local ANIM_DURATION = 15   -- tick
+local ANIM_DURATION = 10   -- tick
 local ACCENT_HIDDEN = colors.with_alpha(colors.accent, 0.0)
 
 -- 可視タグがちょうど1つならそのタグ番号、そうでなければ nil。
