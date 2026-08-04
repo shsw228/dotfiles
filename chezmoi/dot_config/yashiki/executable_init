@@ -140,8 +140,6 @@ yashiki rule-add --app-id pro.betterdisplay.BetterDisplay ignore
 yashiki rule-add --app-id com.pointum.hazeover ignore
 yashiki rule-add --app-name borders ignore
 yashiki rule-add --app-name sketchybar ignore
-yashiki rule-add --app-id com.raycast.macos ignore
-yashiki rule-add --app-id com.knollsoft.Hookshot ignore
 
 ##### Following display configuration #####
 # Rebuild sketchybar and re-apply the per-display outer gap whenever the
