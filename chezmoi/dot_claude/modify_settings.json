@@ -1,0 +1,59 @@
+#!/bin/sh
+# ~/.claude/settings.json は Claude Code 自身も書く (/model が "model" キーを
+# 保存するなど)。ファイル全体を chezmoi が所有すると、モデルを切り替えるだけで
+# drift になる。ここに書いたキーだけをリポジトリが管理し、それ以外のキーは
+# ローカルの値をそのまま保持する。
+#
+# modify_ スクリプト: 現在のファイル内容が stdin で渡り、stdout が新しい内容になる。
+set -eu
+
+if command -v jq >/dev/null 2>&1; then
+  jq_cmd="$(command -v jq)"
+elif [ -x /opt/homebrew/bin/jq ]; then
+  jq_cmd="/opt/homebrew/bin/jq"
+else
+  # 初回ブートで jq がまだ無い場合は管理キーだけで作る (次の apply で復元される)
+  jq_cmd=""
+fi
+
+managed='{
+  "permissions": {
+    "allow": [
+      "mcp__pencil"
+    ],
+    "defaultMode": "auto"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
+    "swift-lsp@claude-plugins-official": true,
+    "swiftui-expert@swiftui-expert-skill": true
+  },
+  "extraKnownMarketplaces": {
+    "swiftui-expert-skill": {
+      "source": {
+        "source": "github",
+        "repo": "AvdLee/SwiftUI-Agent-Skill"
+      }
+    }
+  },
+  "language": "Japanese",
+  "effortLevel": "high",
+  "tui": "fullscreen",
+  "theme": "dark-ansi",
+  "editorMode": "normal",
+  "verbose": true,
+  "preferredNotifChannel": "ghostty",
+  "skipAutoPermissionPrompt": true
+}'
+
+existing="$(cat 2>/dev/null || true)"
+if [ -z "$existing" ] || [ -z "$jq_cmd" ]; then
+  printf '%s\n' "$managed"
+  exit 0
+fi
+
+# 深いマージ。右側 (managed) が管理キーを上書きし、それ以外は existing が残る
+printf '%s\n' "$existing" | "$jq_cmd" --argjson managed "$managed" '. * $managed'
