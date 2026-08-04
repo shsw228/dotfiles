@@ -5,7 +5,7 @@ local styles = require("styles")
 local yashiki = require("items.yashiki")
 
 -- 可視タグが1つのとき、そのセルを囲むリングを描き、切り替えで横にスライドさせる。
--- 可視タグが複数のときは1つでは表せないので隠し、タグ側の塗りに戻す。
+-- 可視タグが複数のときは1つでは表せないので隠す。
 --
 -- 前提となる sketchybar の性質 (実測):
 --   * item は重ねられない。負の padding_left なら描画位置だけ左へ動かせるが、
@@ -15,18 +15,24 @@ local yashiki = require("items.yashiki")
 --   * 描画順は追加順なので、この item はタグ item の上に来る。bracket なら下に
 --     描かれるが、bracket の幅はメンバー幅に固定で動かせない
 --
--- 上に来るので塗りつぶすとタグの数字とアイコンを隠してしまう。中身をこちらに複製
--- すると、幅の補間中にアイコンの文字列だけが瞬間的に入れ替わってチラつく。
--- そこで塗りは透明にして縁だけを描き、中身はタグ item のまま透かせる。
--- 補間するのは位置と幅と縁の色だけになる。
+-- 上に来るので塗りつぶすとタグの中身を隠す。中身をこちらに複製すると、幅の補間中に
+-- アイコンの文字列だけが瞬間的に入れ替わってチラつく。そこで塗りは透明にして縁だけを
+-- 描き、中身はタグ item のまま透かせる。補間するのは位置と幅と縁の色だけ。
+--
+-- 位置は毎回 --query で測るのではなくキャッシュから引く。測ってから動かすと、
+-- タグ側の色が先に変わってワンテンポ遅れて動いて見える。セル幅はアイコンの有無で
+-- 決まるので、アイコンの署名が同じならキャッシュは有効。動かした後に裏で測り直し、
+-- ずれていればその場で直す。
 
 local ANIM_CURVE = yashiki.anim.curve
 local ANIM_DURATION = yashiki.anim.duration
 local SKETCHYBAR = settings.paths.sketchybar
 local BORDER_WIDTH = 2
 
--- 対象タグのセルと自分の矩形を1回のシェル呼び出しで取る。自分の位置も毎回測るので
--- ずれても次の移動で自己修正する。
+-- アニメーションが終わってから測るための待ち (tick は 1/60 秒)
+local SETTLE_DELAY = string.format("%.2f", ANIM_DURATION / 60 + 0.1)
+
+-- 対象タグのセルと自分の矩形を1回のシェル呼び出しで取る
 local function query_rects(target_id, self_id, display_key, callback)
   sbar.exec(
     "{ " .. SKETCHYBAR .. " --query " .. target_id .. "; "
@@ -34,7 +40,11 @@ local function query_rects(target_id, self_id, display_key, callback)
       .. "jq -rs --arg k '" .. display_key .. "' "
       .. "'[.[0].bounding_rects[$k].origin[0], .[0].bounding_rects[$k].size[0], "
       .. ".[1].bounding_rects[$k].origin[0]] | @tsv'",
-    callback
+    function(result)
+      local x, w, self_x =
+        tostring(result or ""):match("([%-%d%.]+)%s+([%-%d%.]+)%s+([%-%d%.]+)")
+      callback(tonumber(x), tonumber(w), tonumber(self_x))
+    end
   )
 end
 
@@ -62,61 +72,106 @@ for _, out in ipairs(yashiki.outputs) do
     updates = true,
   })
 
-  local padding = 0        -- いま入れている padding_left
-  local placed = false     -- 一度でも位置を合わせられたか
+  local cells = {}       -- タグ番号 -> { x, w }
+  local cells_sig = nil  -- タグ列の内容の署名。変わればセル幅も変わる
+  local natural_x = nil  -- padding_left = 0 のときの自分の左端
+  local padding = 0      -- いま入れている padding_left
+  local shown = false    -- リングが出ているか
+  local target_tag = nil -- いま囲んでいるタグ
 
-  local function hide()
-    sbar.animate(ANIM_CURVE, ANIM_DURATION, function()
-      indicator:set({ background = { border_color = yashiki.accent_hidden } })
-    end)
-    -- 次に出すときは、離れた位置から滑ってくるのではなくその場でフェードさせる
-    placed = false
+  local function apply(x, w, animate)
+    local next_padding = x - natural_x
+    local props = {
+      width = w,
+      padding_left = next_padding,
+      background = { border_color = colors.accent },
+    }
+    if animate then
+      sbar.animate(ANIM_CURVE, ANIM_DURATION, function() indicator:set(props) end)
+    else
+      indicator:set(props)
+    end
+    padding = next_padding
   end
 
-  -- リロード直後はまだレイアウトが無く矩形が引けない。数回だけ間を置いて粘る。
-  -- 引けたとしてもアイコンが出そろう前の幅で測っていることがあるので、初回
-  -- (settle) だけ一度置いてから測り直す。
-  local function place(target, attempt, settle)
+  -- 動かした後に測り直す。キャッシュと natural_x を直し、ずれていればその場で寄せる。
+  local function verify(target)
     local target_id = "yashiki." .. target .. ".d" .. out.sb_display
-    query_rects(target_id, item_id, display_key, function(result)
-      local x, w, self_x =
-        tostring(result or ""):match("([%-%d%.]+)%s+([%-%d%.]+)%s+([%-%d%.]+)")
-      x, w, self_x = tonumber(x), tonumber(w), tonumber(self_x)
+    sbar.exec("sleep " .. SETTLE_DELAY, function()
+      query_rects(target_id, item_id, display_key, function(x, w, self_x)
+        if not (x and w and self_x) then return end
+        cells[target] = { x = x, w = w }
+        natural_x = self_x - padding
+        if math.abs(x - self_x) > 0.5 then
+          apply(x, w, false)
+        end
+      end)
+    end)
+  end
+
+  -- キャッシュが無いときだけ測ってから置く。リロード直後は矩形が引けないので粘る。
+  local function measure_and_place(target, attempt)
+    local target_id = "yashiki." .. target .. ".d" .. out.sb_display
+    query_rects(target_id, item_id, display_key, function(x, w, self_x)
       if not (x and w and self_x) then
         if attempt < 5 then
-          sbar.exec("sleep 0.4", function() place(target, attempt + 1, settle) end)
+          sbar.exec("sleep 0.4", function() measure_and_place(target, attempt + 1) end)
         end
         return
       end
-
-      local next_padding = padding + (x - self_x)
-      local props = {
-        width = w,
-        padding_left = next_padding,
-        background = { border_color = colors.accent },
-      }
-
-      if placed then
-        sbar.animate(ANIM_CURVE, ANIM_DURATION, function() indicator:set(props) end)
-      else
-        indicator:set(props)
-        if settle then
-          sbar.exec("sleep 0.3", function() place(target, 1, false) end)
-        else
-          placed = true
-        end
-      end
-      padding = next_padding
+      cells[target] = { x = x, w = w }
+      natural_x = self_x - padding
+      apply(x, w, shown)
+      shown = true
+      verify(target)
     end)
   end
 
   indicator:subscribe("yashiki_workspace_change", function(env)
     local active = tonumber(env[active_key]) or 0
     local target = yashiki.single_active_tag(active)
+
     if not target then
-      hide()
+      sbar.animate(ANIM_CURVE, ANIM_DURATION, function()
+        indicator:set({ background = { border_color = yashiki.accent_hidden } })
+      end)
+      -- 次に出すときは、離れた位置から滑ってくるのではなくその場でフェードさせる
+      shown = false
       return
     end
-    place(target, 1, not placed)
+
+    -- セル幅はどのタグにアイコンが出ているかで決まる
+    local sig = {}
+    for _, tag in ipairs(yashiki.tags) do
+      sig[#sig + 1] = env["OUTPUT_" .. out.yashiki_id .. "_TAG_APPS_" .. tag.num] or ""
+    end
+    sig = table.concat(sig, "|")
+    if sig ~= cells_sig then
+      cells_sig = sig
+      cells = {}
+    end
+
+    target_tag = target
+
+    local cell = cells[target]
+    if cell and natural_x then
+      -- 測らずに即座に動かす。タグ側の色の補間と同時に始まる。
+      apply(cell.x, cell.w, shown)
+      shown = true
+      verify(target)
+    else
+      measure_and_place(target, 1)
+    end
+  end)
+
+  -- ディスプレイ構成が変わると列の基準 x が変わるが、ワークスペースイベントは来ない。
+  -- 復帰時も同様。キャッシュを捨てて測り直す。
+  indicator:subscribe({ "display_change", "system_woke" }, function()
+    cells = {}
+    cells_sig = nil
+    natural_x = nil
+    if target_tag then
+      measure_and_place(target_tag, 1)
+    end
   end)
 end
