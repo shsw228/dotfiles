@@ -14,7 +14,7 @@ use std::io::{BufRead, BufReader};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
@@ -24,6 +24,16 @@ const TAG_COUNT: usize = 10;
 /// Drain whatever else already arrived before firing, so a burst (an app
 /// opening several windows) collapses into one trigger instead of one per line.
 const COALESCE: Duration = Duration::from_millis(10);
+
+/// Rapid tag switching (holding alt-tab) makes yashiki emit a long stream of
+/// alternating states, often lagging behind the keys because every switch also
+/// retiles. Forwarding each one makes the bar chase stale targets back and
+/// forth long after the user stopped. If we fired recently, treat the stream
+/// as a burst: keep folding until it goes quiet, but never sit on updates
+/// longer than the cap, so mid-burst progress still shows.
+const BURST_DETECT: Duration = Duration::from_millis(250);
+const BURST_QUIET: Duration = Duration::from_millis(80);
+const BURST_CAP: Duration = Duration::from_millis(350);
 
 const RESUBSCRIBE_DELAY: Duration = Duration::from_secs(2);
 
@@ -266,8 +276,12 @@ fn pump(stdout: ChildStdout) {
     });
 
     let mut state = State::default();
+    let mut last_fire: Option<Instant> = None;
     while let Ok(mut line) = rx.recv() {
         let mut pending = Pending::default();
+        let in_burst = last_fire.is_some_and(|t| t.elapsed() < BURST_DETECT);
+        let quiet = if in_burst { BURST_QUIET } else { COALESCE };
+        let deadline = Instant::now() + BURST_CAP;
         loop {
             if let Ok(msg) = serde_json::from_str::<Value>(line.trim()) {
                 let next = state.apply(&msg);
@@ -277,7 +291,11 @@ fn pump(stdout: ChildStdout) {
                     pending.mode = next.mode;
                 }
             }
-            match rx.recv_timeout(COALESCE) {
+            let now = Instant::now();
+            if now >= deadline {
+                break;
+            }
+            match rx.recv_timeout(quiet.min(deadline - now)) {
                 Ok(next) => line = next,
                 Err(_) => break,
             }
@@ -293,6 +311,7 @@ fn pump(stdout: ChildStdout) {
         if let Some(mode) = pending.mode {
             trigger("yashiki_mode_change", &[format!("MODE={mode}")]);
         }
+        last_fire = Some(Instant::now());
     }
 }
 
