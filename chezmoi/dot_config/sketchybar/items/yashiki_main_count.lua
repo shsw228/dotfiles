@@ -26,7 +26,10 @@ local main_count = sbar.add("item", "yashiki_main_count", {
 local function refresh()
   -- 初期値は wrapper のキャッシュファイルから読む
   sbar.exec("cat \"$HOME/.cache/yashiki/main_count\" 2>/dev/null || echo 1", function(result)
-    local n = tonumber((result or "1"):gsub("%s+$", "")) or 1
+    -- gsub は第2戻り値に置換回数を返す。tonumber に直接渡すとそれが base 引数に
+    -- 入って "base out of range" で落ちるので、一度変数に受けて1値に切る。
+    local trimmed = (result or "1"):gsub("%s+$", "")
+    local n = tonumber(trimmed) or 1
     main_count:set({ label = { string = tostring(n) } })
   end)
 end
