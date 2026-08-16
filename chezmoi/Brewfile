@@ -33,8 +33,9 @@ brew "msitools"
 brew "neovim"
 brew "node"
 brew "pnpm"
-# yashiki-bridge を apply 時にビルドするため (run_onchange_14)
-brew "rust"
+# yashiki-bridge を apply 時にビルドするため (run_onchange_14)。
+# shim を置くだけで toolchain は入らないので、実体は run_onchange_14 が入れる。
+brew "rustup"
 brew "sheldon"
 brew "starship"
 brew "xcodegen"
