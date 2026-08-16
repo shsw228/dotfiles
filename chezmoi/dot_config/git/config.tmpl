@@ -7,9 +7,23 @@
 [user]
 	name = {{ $name | quote }}
 	email = {{ $email | quote }}
+	# Secure Enclave 内の鍵を指すハンドル。パスは全端末で同じで、中身だけが端末固有。
+	signingkey = {{ .chezmoi.homeDir }}/.ssh/id_git_sign
+
+[gpg]
+	format = ssh
+
+[gpg "ssh"]
+	# SSH_SK_PROVIDER を注入するラッパー越しに呼ぶ必要がある。
+	# run_command 経由なので ~ は展開されない。絶対パスで書く。
+	program = {{ .chezmoi.homeDir }}/.local/bin/ssh-sign
+	allowedSignersFile = {{ .chezmoi.homeDir }}/.ssh/allowed_signers
 
 [ghq]
 	root = ~/Developer/ghq
 
+# commit.gpgsign / tag.gpgsign はここでは有効にしない。
+# 鍵が無い端末で全コミットが落ちるのを避けるため、run_once_17 が実際に
+# 署名を1回通してから config.local 側で有効化する。
 [include]
 	path = ~/.config/git/config.local
