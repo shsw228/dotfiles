@@ -53,6 +53,20 @@ zsh -n chezmoi/dot_config/zsh/dot_z*
 
 Japanese, in the form `[type] 概要`. Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`. PR titles also in Japanese.
 
+## Commit Signing
+
+Commits are signed with an SSH key held in the Secure Enclave. The private key is
+non-exportable, so it **cannot be migrated between machines** — each machine generates
+its own once via `run_once_17_setup-git-signing.sh.tmpl`.
+
+Setting up a new machine requires two manual registrations of the printed public key:
+GitHub (Signing key) and the list in `chezmoi/private_dot_ssh/allowed_signers.tmpl`.
+Never delete an old machine's key from either place — past commits stop verifying.
+
+`commit.gpgsign` is deliberately absent from `dot_config/git/config.tmpl`; the setup
+script enables it in `~/.config/git/config.local` only after a test signature succeeds,
+so a machine without a working key can still commit.
+
 ## Secrets
 
 Never commit secrets. 1Password tokens and app licenses are injected at runtime by `run_onchange_*` scripts, not stored in source.
