@@ -12,16 +12,28 @@ if [ "${CHEZMOI_CI:-0}" = "1" ]; then
   exit 0
 fi
 
+# brew の rustup は shim を /opt/homebrew/bin に link しないので、
+# PATH が通っていない状況でも拾えるよう opt 側を直接見る。
+rustup_bin=/opt/homebrew/opt/rustup/bin
+
 if command -v cargo >/dev/null 2>&1; then
   cargo_cmd="$(command -v cargo)"
-elif [ -x /opt/homebrew/bin/cargo ]; then
-  cargo_cmd="/opt/homebrew/bin/cargo"
+elif [ -x "$rustup_bin/cargo" ]; then
+  cargo_cmd="$rustup_bin/cargo"
 elif [ -x "${HOME}/.cargo/bin/cargo" ]; then
   cargo_cmd="${HOME}/.cargo/bin/cargo"
 else
-  # Brewfile の rust は run_onchange_10 で入る。まだ無いなら次の apply に回す。
+  # Brewfile の rustup は run_onchange_10 で入る。まだ無いなら次の apply に回す。
   echo "yashiki-bridge: cargo が無いのでビルドを飛ばす" >&2
   exit 0
+fi
+
+# rustup を入れただけでは toolchain が無く、shim を叩いても失敗する。
+# 新しい端末での初回だけ stable を落としてくる。
+if [ -x "$rustup_bin/rustup" ] && \
+   "$rustup_bin/rustup" toolchain list 2>/dev/null | grep -q "no installed"; then
+  echo "yashiki-bridge: rust の toolchain が無いので stable を入れる" >&2
+  "$rustup_bin/rustup" default stable
 fi
 
 crate="{{ .chezmoi.sourceDir }}/yashiki-bridge"
