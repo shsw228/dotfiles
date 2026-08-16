@@ -1,0 +1,20 @@
+{{- /* git のコミット署名を手元で検証するための公開鍵一覧。
+       署名鍵は端末ごとに Secure Enclave 内で作られ外に持ち出せないので、
+       鍵は端末の数だけ増える。新しい端末を用意したら
+       run_once_17_setup-git-signing.sh が表示する行を下のリストに追記する。
+       手放した端末の鍵も消さない（消すと過去のコミットが検証できなくなる）。
+
+       公開鍵自体は秘密ではないが、会社用の識別子を公開リポジトリに置かないため
+       principal はプロファイルの email から差し込む。 */ -}}
+{{- $email := dig "git" "email" "" . -}}
+{{- $personal := list
+      "sk-ecdsa-sha2-nistp256@openssh.com AAAAInNrLWVjZHNhLXNoYTItbmlzdHAyNTZAb3BlbnNzaC5jb20AAAAIbmlzdHAyNTYAAABBBBjAflzsOl88Dh0KVYRSAE2uad/KfIHX43O+yswNMy5EXQ/VigOytpvyu7zPu/vxiagkg3FH95KY6AOygT49y5EAAAAEc3NoOg== HumeBook-Air"
+-}}
+{{- $work := list -}}
+{{- $keys := $work -}}
+{{- if dig "profile" "is_personal_pc" false . -}}
+{{- $keys = $personal -}}
+{{- end -}}
+# chezmoi 管理。編集は chezmoi/private_dot_ssh/allowed_signers.tmpl で行う。
+{{ range $keys }}{{ $email }} {{ . }}
+{{ end -}}
