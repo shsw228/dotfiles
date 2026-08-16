@@ -1,0 +1,83 @@
+#!/bin/sh
+# git のコミット署名鍵を Secure Enclave 内に作る。
+#
+# 秘密鍵は SEP から出られないので端末間で共有もバックアップもできない。
+# 端末ごとに1回だけ作り、公開鍵を GitHub と allowed_signers の両方に積み上げる。
+# ~/.ssh/id_git_sign は鍵ハンドルであって秘密鍵材料を含まない。
+set -eu
+
+[ "${CHEZMOI_CI:-0}" = "1" ] && exit 0
+[ "$(uname -s)" = "Darwin" ] || exit 0
+
+label="git-sign"
+provider="/usr/lib/ssh-keychain.dylib"
+handle="$HOME/.ssh/id_git_sign"
+wrapper="$HOME/.local/bin/ssh-sign"
+localconfig="$HOME/.config/git/config.local"
+
+# 鍵ハンドルがあれば作成済み。
+[ -f "$handle" ] && exit 0
+
+# CTK identity は macOS 14 Sonoma 以降。
+major="$(sw_vers -productVersion | cut -d. -f1)"
+if [ "$major" -lt 14 ]; then
+  printf '\033[33m⚠\033[0m macOS 14 未満のため git 署名鍵の作成をスキップします\n' >&2
+  exit 0
+fi
+
+if [ ! -f "$provider" ]; then
+  printf '\033[33m⚠\033[0m %s が見つかりません。git 署名の設定をスキップします\n' "$provider" >&2
+  exit 0
+fi
+
+# -k p-256-ne が非エクスポート、つまり SEP から出ない鍵。
+# -t none は生体認証を要求しない設定で、Coding Agent のコミットが
+# Touch ID 待ちでタイムアウトしないために必要。
+if ! sc_auth list-ctk-identities | grep -q "$label"; then
+  sc_auth create-ctk-identity -l "$label" -k p-256-ne -t none
+fi
+
+# -K は resident key をカレントディレクトリに書き出すので一時ディレクトリで実行する。
+# 出力名は id_ecdsa_sk_rk_<label>。PIN を聞かれるが -t none の鍵なので空で通る。
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+(cd "$tmp" && ssh-keygen -w "$provider" -K -N "" >/dev/null 2>&1) </dev/null || true
+
+src="$tmp/id_ecdsa_sk_rk_$label"
+if [ ! -f "$src" ]; then
+  printf '\033[31m✖\033[0m Secure Enclave から鍵ハンドルを取り出せませんでした\n' >&2
+  exit 1
+fi
+
+mkdir -p "$HOME/.ssh"
+mv "$src" "$handle"
+mv "$src.pub" "$handle.pub"
+chmod 600 "$handle"
+chmod 644 "$handle.pub"
+
+# 署名が実際に通ることを確かめてから有効化する。
+# ここを飛ばすと、鍵の作成に失敗した端末であらゆる commit が落ちる。
+printf 'probe\n' > "$tmp/probe"
+if [ -x "$wrapper" ] && "$wrapper" -Y sign -f "$handle" -n git "$tmp/probe" >/dev/null 2>&1 </dev/null; then
+  mkdir -p "$(dirname "$localconfig")"
+  git config -f "$localconfig" commit.gpgsign true
+  git config -f "$localconfig" tag.gpgsign true
+  printf '\033[32m✔\033[0m Secure Enclave の鍵で署名を確認し、commit.gpgsign を有効化しました\n'
+else
+  printf '\033[33m⚠\033[0m 署名の動作確認に失敗したため commit.gpgsign は無効のままにします\n' >&2
+fi
+
+# ComputerName は空白を含みうるので、そのまま貼れる hostname -s を使う。
+host="$(hostname -s)"
+cat <<EOF
+
+作成した鍵はこの端末専用で、他の端末には移せません。次の2箇所に登録してください。
+
+1) GitHub の Signing key（1回だけ）
+     gh ssh-key add "$handle.pub" --type signing --title "$host git-sign"
+   もしくは https://github.com/settings/ssh/new から Key type = Signing key で追加
+
+2) dotfiles の chezmoi/private_dot_ssh/allowed_signers.tmpl のリストに追記して commit
+     "$(cut -d' ' -f1,2 "$handle.pub") $host"
+
+EOF

@@ -1,0 +1,9 @@
+#!/bin/sh
+# git の ssh 署名から ssh-keygen を呼ぶためのラッパー。
+# ~/.ssh/id_git_sign は Secure Enclave 内の鍵を指すハンドルでしかないため、
+# 署名時に ssh-keygen が SEP と喋るには SSH_SK_PROVIDER が要る。
+# git には子プロセスへ環境変数を渡す設定が無いので、ここで注入して委譲する。
+set -eu
+
+export SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib
+exec /usr/bin/ssh-keygen "$@"
