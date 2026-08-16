@@ -88,6 +88,8 @@ jobs:
             printf '%s\n' "$managed" | grep -Fx "$target" >/dev/null
           done <<'EOF_TARGETS'
           .config/git/config
+          .local/bin/ssh-sign
+          .ssh/allowed_signers
           .config/sheldon/plugins.toml
           .config/zsh/.zprofile
           .config/zsh/.zshenv
@@ -110,6 +112,8 @@ jobs:
             --no-tty
 
           test -f "$home/.config/git/config"
+          test -x "$home/.local/bin/ssh-sign"
+          test -f "$home/.ssh/allowed_signers"
           test -f "$home/.config/sheldon/plugins.toml"
           test -f "$home/.config/zsh/.zprofile"
           test -f "$home/.config/zsh/.zshenv"
@@ -135,6 +139,8 @@ jobs:
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_50_set-ssh-auth-sock.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_60_finalize-ssh-remote.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_17_setup-git-signing.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/dot_local/bin/executable_ssh-sign"
           sh -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_init"
           bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_display_watcher.sh"
           bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_focus_watcher.sh"
