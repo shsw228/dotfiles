@@ -32,6 +32,8 @@ zsh -n chezmoi/dot_config/zsh/dot_z*
 
 `chezmoi-check` workflow (`.github/workflows/chezmoi-check.yml`) runs on PRs and pushes to main. It validates template rendering, dry-run apply, expected managed targets, and shell syntax. Ensure `chezmoi apply --dry-run` and all `sh -n`/`zsh -n` checks pass before merging.
 
+`main` is protected and requires `validate` to pass. **Always land changes through a PR**, never by pushing to `main` — a direct push has to bypass the required check, which defeats it. Branch, open a PR, wait for `validate`, then merge. `gh pr update-branch` first if the PR is behind; merging requires the branch to be up to date.
+
 ## Source Layout
 
 - `chezmoi/` — chezmoi source state (`.chezmoiroot` makes this the root)
