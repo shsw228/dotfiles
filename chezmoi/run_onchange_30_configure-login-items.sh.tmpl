@@ -59,7 +59,23 @@ fi
 # bootstrap し直す。
 launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
 
+# glide はログイン項目で上げる（upstream が用意しているのがこれ）。yashiki と違い
+# 連携プロセスを exec --track で抱えないので、プロセスグループごと落とすための
+# LaunchAgent にする必要がない。
+#
+# シェルから `glide launch` すると呼び出し元のプロセスグループごと回収されて
+# 死ぬ。デタッチして起動すること（open -a Glide、またはこのログイン項目）。
+if [ -x /Applications/Glide.app/Contents/MacOS/glide ]; then
+  /Applications/Glide.app/Contents/MacOS/glide service install >/dev/null 2>&1 || true
+fi
+
 {{ else -}}
+# glide を試したあと戻ってきた場合、ログイン項目が残っていると yashiki と
+# 二重にタイルしようとする。
+if [ -x /Applications/Glide.app/Contents/MacOS/glide ]; then
+  /Applications/Glide.app/Contents/MacOS/glide service uninstall >/dev/null 2>&1 || true
+fi
+
 # Yashiki(タイル型WM)を LaunchAgent で起動する。
 #
 # ログイン項目ではなく LaunchAgent なのは、クラッシュ時に連携プロセスを道連れに
