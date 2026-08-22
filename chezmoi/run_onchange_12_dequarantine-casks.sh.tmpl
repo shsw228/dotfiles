@@ -3,9 +3,15 @@
 # Homebrew 6.x で --no-quarantine が廃止されたため、bundle 後に一括で除去する。
 # 自分で管理する Brewfile 由来の cask は信頼する前提。
 #
-# Brewfile を変更(cask 追加など)したときだけ再実行されるよう、
-# Brewfile のハッシュを埋め込んでおく。
+# Brewfile を変更(cask 追加など)したときだけでなく、cask が upgrade された
+# ときにも再実行する必要がある。ダウンロードし直された .app には検疫属性が
+# 付き直すので、Brewfile のハッシュだけだと取りこぼす (yashiki-fork の
+# 0.15.2.2 -> 0.15.2.3 で実際に取りこぼした)。
+# インストール済み cask のバージョン一覧もハッシュに混ぜる。
 # Brewfile hash: {{ include "Brewfile" | sha256sum }}
+# brew が無い環境ではハッシュを足さない。output はコマンドが失敗すると
+# テンプレート描画ごと落ちるため、存在確認してから呼ぶ。
+{{ if lookPath "brew" }}# Installed casks: {{ output "brew" "list" "--cask" "--versions" | sha256sum }}{{ end }}
 set -eu
 
 if [ "${CHEZMOI_CI:-0}" = "1" ]; then

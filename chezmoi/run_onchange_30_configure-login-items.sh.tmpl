@@ -46,6 +46,22 @@ if [ -n "$brew_cmd" ]; then
   done
 fi
 
+{{- $wm := dig "wm" "kind" "yashiki" . }}
+{{ if ne $wm "yashiki" -}}
+# 自動起動するWMは data.wm.kind = {{ $wm | quote }}。yashiki は動かさない。
+#
+# LaunchAgent は KeepAlive なので、止めるには bootout してラベルを外す必要がある。
+# launchd はジョブ終了時にプロセスグループごと落とすので、yashiki の init が
+# exec --track で起動した sketchybar / borders / display_watcher.sh もここで
+# まとめて落ちる。sketchybar を出したくなったら別途起こす。
+#
+# 別のWMを試すときは、その自動起動をこの分岐に足す。
+#
+# plist は残す。data.wm.kind を yashiki に戻して apply すれば下の分岐が
+# bootstrap し直す。
+launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
+
+{{ else -}}
 # Yashiki(タイル型WM)を LaunchAgent で起動する。
 #
 # ログイン項目ではなく LaunchAgent なのは、クラッシュ時に連携プロセスを道連れに
@@ -57,20 +73,22 @@ fi
 # AbandonProcessGroup は既定 (false) のままにすること。true にすると上の連鎖が
 # 止まる。KeepAlive と組み合わせて「まとめて落ちて、まとめて上がり直す」にする。
 #
-# 起動先は fork ビルドがあればそちらを優先する。この dotfiles は fork 前提で、
-# 上流ビルドではメニューバー表示の切替に追従できず (display イベントが飛ばない)、
+# 起動先は fork ビルド。この dotfiles は fork 前提で、上流ビルドでは
+# メニューバー表示の切替に追従できず (display イベントが飛ばない)、
 # display_watcher.sh が使う set-outer-gap --output と physical_* も無い。
 #
-# cask の Yashiki.app は消さない。bundle ID が別 (dev.typester.yashiki と
-# dev.typester.yashiki.fork) なのでアクセシビリティ権限も別管理になり、共存できる。
-# 上流に取り込まれたら Yashiki-fork.app を消すだけで cask 側へ戻る。
+# 配置は Brewfile の cask "shsw228/tap/yashiki-fork" が行う。上流の cask とは
+# binary の張り先 (yashiki) が衝突するので併存させていない。上流に PR が
+# 取り込まれたら Brewfile を上流の cask に戻すだけでよい。
 plist="$HOME/Library/LaunchAgents/com.shsw228.yashiki.plist"
-for candidate in /Applications/Yashiki-fork.app /Applications/Yashiki.app; do
-  if [ -x "$candidate/Contents/MacOS/yashiki" ]; then
-    app="$candidate/Contents/MacOS/yashiki"
-    break
-  fi
-done
+app="/Applications/Yashiki-fork.app/Contents/MacOS/yashiki"
+
+if [ ! -x "$app" ]; then
+  # brew bundle より後に走る想定なので、ここで無いのは異常。
+  # 黙って抜けると WM が上がらない理由が分からなくなる。
+  echo "yashiki: $app が見つかりません。" >&2
+  echo "         brew install --cask shsw228/tap/yashiki-fork を確認してください。" >&2
+fi
 
 if [ -n "${app:-}" ] && [ -x "$app" ]; then
   mkdir -p "$HOME/Library/LaunchAgents"
@@ -111,3 +129,4 @@ PLIST
     launchctl bootstrap "gui/$(id -u)" "$plist" 2>/dev/null || true
   fi
 fi
+{{ end -}}

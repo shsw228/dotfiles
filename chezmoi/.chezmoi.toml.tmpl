@@ -20,6 +20,13 @@ sourceDir = "{{ .chezmoi.homeDir }}/Developer/ghq/github.com/shsw228/dotfiles"
 [data.profile]
 is_personal_pc = {{ $isPersonalPC }}
 
+# どのタイル型WMを自動起動するか。run_onchange_30 と run_onchange_20 がこれを見る。
+# 既定は yashiki。別のWMを試すときは CHEZMOI_WM=<名前> を渡して
+# chezmoi init するか、このファイルを直接書き換える。prompt にしないのは、
+# 新しい端末で毎回聞かれる価値のある選択ではないため。
+[data.wm]
+kind = {{ or (env "CHEZMOI_WM") "yashiki" | quote }}
+
 {{- if $isPersonalPC }}
 [data.git]
 name = "hume"
