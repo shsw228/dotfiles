@@ -102,6 +102,17 @@ for candidate in /Applications/Yashiki-fork.app /Applications/Yashiki.app; do
   fi
 done
 
+# cask 版に落ちたときは黙って進めない。上流ビルドには display イベントも
+# set-outer-gap --output も physical_* も無いので、バーとタイル配置が
+# メニューバーぶんずれたまま動く。原因を追いにくい壊れ方をするので警告する。
+# fork ビルドの取得は run_13_install-yashiki-fork.sh が担当している。
+case "${app:-}" in
+  /Applications/Yashiki.app/*)
+    echo "yashiki: fork ビルドが無いため cask 版で起動します。display 追従と" >&2
+    echo "         per-display の outer-gap は効きません。" >&2
+    ;;
+esac
+
 if [ -n "${app:-}" ] && [ -x "$app" ]; then
   mkdir -p "$HOME/Library/LaunchAgents"
   cat >"$plist" <<PLIST

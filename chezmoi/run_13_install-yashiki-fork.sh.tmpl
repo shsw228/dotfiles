@@ -1,0 +1,123 @@
+#!/bin/sh
+# fork ビルドの Yashiki-fork.app を GitHub Releases から取得して /Applications に置く。
+#
+# この dotfiles は fork 前提で、上流ビルドではメニューバー表示の切替に追従できず
+# (display イベントが飛ばない)、display_watcher.sh が使う set-outer-gap --output と
+# physical_* も無い。以前は手元でビルドして手で配置していたので、端末を作り直すと
+# 再現できなかった。shsw228/yashiki の Fork build ワークフローが固定タグ
+# fork-latest に publish するので、そこから取る。
+#
+# cask の Yashiki.app は消さない。bundle ID が別 (dev.typester.yashiki と
+# dev.typester.yashiki.fork) なのでアクセシビリティ権限も別管理で、共存できる。
+#
+# run_onchange_ ではなく run_ (毎回実行) にしてある。リリース側が更新されても
+# このスクリプトの内容は変わらないため、onchange だと二度と再実行されない。
+set -eu
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+{{ if ne (dig "wm" "kind" "yashiki" .) "yashiki" -}}
+# 自動起動するWMが yashiki 以外のときは取得しない。使わないものを落としても
+# ディスクを食うだけで、glide 試験中に yashiki を更新する意味がない。
+exit 0
+{{ end -}}
+
+REPO="shsw228/yashiki"
+TAG="fork-latest"
+APP="/Applications/Yashiki-fork.app"
+# stamp をバンドル内に置くと codesign --deep が封じた Contents/Resources を
+# 書き換えることになり署名が壊れる (壊れるとアクセシビリティ権限も失効する)。
+# バンドルの外に置く。消えても余分に一度入れ直すだけで害はない。
+STAMP="${HOME}/.cache/yashiki/fork-build-info.txt"
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "yashiki-fork: gh が無いため取得をスキップします" >&2
+  exit 0
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT INT TERM
+
+# まず数十バイトの build info だけ取って、更新の有無を判定する。
+if ! gh release download "$TAG" --repo "$REPO" \
+     --pattern 'fork-build-info.txt' --dir "$tmp" >/dev/null 2>&1; then
+  echo "yashiki-fork: ${REPO} の ${TAG} を取得できません (未公開か gh 未認証)" >&2
+  exit 0
+fi
+
+remote_sha="$(sed -n 's/^sha=//p' "$tmp/fork-build-info.txt" | head -1)"
+local_sha="$(sed -n 's/^sha=//p' "$STAMP" 2>/dev/null | head -1 || true)"
+
+if [ -z "$remote_sha" ]; then
+  echo "yashiki-fork: build info に sha がありません" >&2
+  exit 0
+fi
+
+# 同じ sha で、かつ実体があるなら何もしない。
+if [ "$remote_sha" = "${local_sha:-}" ] && [ -d "$APP" ]; then
+  exit 0
+fi
+
+if ! gh release download "$TAG" --repo "$REPO" \
+     --pattern 'Yashiki-fork-arm64-*.zip' --dir "$tmp" >/dev/null 2>&1; then
+  echo "yashiki-fork: .app の zip を取得できません" >&2
+  exit 0
+fi
+
+zip_path="$(find "$tmp" -maxdepth 1 -name 'Yashiki-fork-arm64-*.zip' | head -1)"
+if [ -z "$zip_path" ]; then
+  echo "yashiki-fork: zip が見つかりません" >&2
+  exit 0
+fi
+
+mkdir -p "$tmp/extract"
+unzip -q "$zip_path" -d "$tmp/extract"
+new_app="$tmp/extract/Yashiki-fork.app"
+if [ ! -d "$new_app" ]; then
+  echo "yashiki-fork: zip に Yashiki-fork.app が入っていません" >&2
+  exit 0
+fi
+
+# 署名が生きているか確認する。壊れたものを入れるとアクセシビリティ権限が
+# 失効し、WM が黙って動かなくなる。
+if ! codesign --verify --deep "$new_app" >/dev/null 2>&1; then
+  echo "yashiki-fork: 署名検証に失敗したため配置しません" >&2
+  exit 0
+fi
+
+# ダウンロード物には検疫属性が付く。付いていれば剥がす (run_onchange_12 と同じ方針)。
+if xattr "$new_app" 2>/dev/null | grep -qx 'com.apple.quarantine'; then
+  xattr -dr com.apple.quarantine "$new_app" 2>/dev/null || true
+fi
+
+# 走っているなら止めてから入れ替える。LaunchAgent は KeepAlive なので
+# bootout しないと launchd が即座に上げ直し、古い inode を掴んだままになる。
+was_running=0
+if pgrep -f 'Yashiki-fork.app/Contents/MacOS/yashiki' >/dev/null 2>&1; then
+  was_running=1
+  launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
+fi
+
+# /Applications の入れ替えは App Management 保護に当たることがある。
+# 失敗を握り潰すと「更新したつもりで古いまま」になるので、明示的に伝える。
+if ! rm -rf "$APP" 2>/dev/null; then
+  echo "yashiki-fork: ${APP} を削除できません。ターミナルに App Management 権限が必要かもしれません" >&2
+  exit 0
+fi
+if ! mv "$new_app" "$APP" 2>/dev/null; then
+  echo "yashiki-fork: ${APP} へ配置できませんでした" >&2
+  exit 0
+fi
+
+mkdir -p "$(dirname "$STAMP")"
+cp "$tmp/fork-build-info.txt" "$STAMP"
+echo "yashiki-fork: ${remote_sha} を配置しました" >&2
+
+# 止めたぶんは戻す。run_onchange_30 は内容が変わらないと再実行されないので
+# ここで面倒を見る必要がある。
+plist="$HOME/Library/LaunchAgents/com.shsw228.yashiki.plist"
+if [ "$was_running" = 1 ] && [ -f "$plist" ]; then
+  launchctl bootstrap "gui/$(id -u)" "$plist" 2>/dev/null || true
+fi
