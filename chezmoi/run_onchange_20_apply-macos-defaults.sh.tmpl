@@ -10,8 +10,8 @@ defaults write NSGlobalDomain AppleInterfaceStyle -string Dark
 defaults write NSGlobalDomain NSWindowResizeTime -float 0.001
 {{- $wm := dig "wm" "kind" "yashiki" . }}
 # メニューバーの自動非表示。sketchybar を主バーとして使う構成でだけ有効にする。
-# glide 試験中は sketchybar を動かしていないので、非表示にすると状態表示が
-# 何も残らない（glide 自身の status icon もメニューバーに出る）。
+# yashiki 以外を試している間は sketchybar を動かしていないので、非表示にすると
+# 状態表示が何も残らない。メニューバーを出しておく。
 #
 # defaults write NSGlobalDomain _HIHideMenuBar は使わない。書き込み先は同じだが、
 # 直接書くと即時反映されず、さらに反映された時点で

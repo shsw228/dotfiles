@@ -54,9 +54,6 @@ cask "font-moralerspace"
 cask "font-symbols-only-nerd-font"
 cask "fork"
 cask "ghostty"
-# glide: yashiki の代替として試験導入中のタイル型WM。どちらを自動起動するかは
-# run_onchange_30 が data.wm.kind で切り替える。cask は CLI も同梱する。
-cask "glide"
 cask "google-chrome"
 cask "hazeover"
 cask "karabiner-elements"

@@ -55,50 +55,13 @@ fi
 # exec --track で起動した sketchybar / borders / display_watcher.sh もここで
 # まとめて落ちる。sketchybar を出したくなったら別途起こす。
 #
+# 別のWMを試すときは、その自動起動をこの分岐に足す。
+#
 # plist は残す。data.wm.kind を yashiki に戻して apply すれば下の分岐が
 # bootstrap し直す。
 launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
 
-# glide はログイン項目で上げる（upstream が用意しているのがこれ）。yashiki と違い
-# 連携プロセスを exec --track で抱えないので、プロセスグループごと落とすための
-# LaunchAgent にする必要がない。
-#
-# シェルから `glide launch` すると呼び出し元のプロセスグループごと回収されて死ぬ。
-# デタッチして起動する必要があるので open -a を使う。
-#
-# `glide service install` は走っているサーバへメッセージポート経由で話しかけるので、
-# 未起動だと "Could not find server" で失敗する（実測）。先に起こしておくこと。
-if [ -x /Applications/Glide.app/Contents/MacOS/glide ]; then
-  open -a Glide 2>/dev/null || true
-  # 起動を待つ。ping が通るまで最大 10 回。
-  i=0
-  while [ "$i" -lt 10 ]; do
-    if /Applications/Glide.app/Contents/MacOS/glide ping >/dev/null 2>&1; then
-      break
-    fi
-    i=$((i + 1))
-    sleep 1
-  done
-  if ! /Applications/Glide.app/Contents/MacOS/glide service install >/dev/null 2>&1; then
-    echo "glide: service install に失敗しました。ログイン時に自動起動しません。" >&2
-  fi
-fi
-
 {{ else -}}
-# glide を試したあと戻ってきた場合、ログイン項目が残っていると次回ログインで
-# 上がってきて yashiki と二重にタイルする。
-#
-# `glide service uninstall` は使えない。走っているサーバへ話しかける実装なので、
-# glide を落としてからここへ来ると "Could not find server" で失敗する（実測）。
-# 落とした後こそ消したいので、CLI ではなく System Events で消す。
-osascript <<'APPLESCRIPT' >/dev/null 2>&1 || true
-tell application "System Events"
-  if exists login item "Glide" then
-    delete login item "Glide"
-  end if
-end tell
-APPLESCRIPT
-
 # Yashiki(タイル型WM)を LaunchAgent で起動する。
 #
 # ログイン項目ではなく LaunchAgent なのは、クラッシュ時に連携プロセスを道連れに

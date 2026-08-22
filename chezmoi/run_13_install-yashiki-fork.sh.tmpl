@@ -20,7 +20,7 @@ fi
 
 {{ if ne (dig "wm" "kind" "yashiki" .) "yashiki" -}}
 # 自動起動するWMが yashiki 以外のときは取得しない。使わないものを落としても
-# ディスクを食うだけで、glide 試験中に yashiki を更新する意味がない。
+# ディスクを食うだけで、別のWMを試している間に yashiki を更新する意味がない。
 exit 0
 {{ end -}}
 
