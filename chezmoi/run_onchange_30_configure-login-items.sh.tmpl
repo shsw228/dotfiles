@@ -73,31 +73,22 @@ launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
 # AbandonProcessGroup は既定 (false) のままにすること。true にすると上の連鎖が
 # 止まる。KeepAlive と組み合わせて「まとめて落ちて、まとめて上がり直す」にする。
 #
-# 起動先は fork ビルドがあればそちらを優先する。この dotfiles は fork 前提で、
-# 上流ビルドではメニューバー表示の切替に追従できず (display イベントが飛ばない)、
+# 起動先は fork ビルド。この dotfiles は fork 前提で、上流ビルドでは
+# メニューバー表示の切替に追従できず (display イベントが飛ばない)、
 # display_watcher.sh が使う set-outer-gap --output と physical_* も無い。
 #
-# cask の Yashiki.app は消さない。bundle ID が別 (dev.typester.yashiki と
-# dev.typester.yashiki.fork) なのでアクセシビリティ権限も別管理になり、共存できる。
-# 上流に取り込まれたら Yashiki-fork.app を消すだけで cask 側へ戻る。
+# 配置は Brewfile の cask "shsw228/tap/yashiki-fork" が行う。上流の cask とは
+# binary の張り先 (yashiki) が衝突するので併存させていない。上流に PR が
+# 取り込まれたら Brewfile を上流の cask に戻すだけでよい。
 plist="$HOME/Library/LaunchAgents/com.shsw228.yashiki.plist"
-for candidate in /Applications/Yashiki-fork.app /Applications/Yashiki.app; do
-  if [ -x "$candidate/Contents/MacOS/yashiki" ]; then
-    app="$candidate/Contents/MacOS/yashiki"
-    break
-  fi
-done
+app="/Applications/Yashiki-fork.app/Contents/MacOS/yashiki"
 
-# cask 版に落ちたときは黙って進めない。上流ビルドには display イベントも
-# set-outer-gap --output も physical_* も無いので、バーとタイル配置が
-# メニューバーぶんずれたまま動く。原因を追いにくい壊れ方をするので警告する。
-# fork ビルドの取得は run_13_install-yashiki-fork.sh が担当している。
-case "${app:-}" in
-  /Applications/Yashiki.app/*)
-    echo "yashiki: fork ビルドが無いため cask 版で起動します。display 追従と" >&2
-    echo "         per-display の outer-gap は効きません。" >&2
-    ;;
-esac
+if [ ! -x "$app" ]; then
+  # brew bundle より後に走る想定なので、ここで無いのは異常。
+  # 黙って抜けると WM が上がらない理由が分からなくなる。
+  echo "yashiki: $app が見つかりません。" >&2
+  echo "         brew install --cask shsw228/tap/yashiki-fork を確認してください。" >&2
+fi
 
 if [ -n "${app:-}" ] && [ -x "$app" ]; then
   mkdir -p "$HOME/Library/LaunchAgents"

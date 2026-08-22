@@ -1,9 +1,9 @@
 tap "abue-ammar/tinycast"
+tap "shsw228/tap"
 tap "arto-app/tap"
 tap "felixkratz/formulae"
 tap "kyome22/tap"
 tap "laishulu/homebrew"
-tap "typester/yashiki"
 tap "yammerjp/tap"
 
 brew "aria2"
@@ -65,7 +65,11 @@ cask "obsidian"
 cask "sf-symbols"
 cask "slack"
 cask "thaw"
-cask "typester/yashiki/yashiki"
+# yashiki は fork ビルドを使う。上流ビルドには display イベントも
+# set-outer-gap --output も physical_* も無い。CI が shsw228/yashiki の
+# local/integration からビルドし、shsw228/tap の cask が追従する。
+# 上流版とは binary の張り先 (yashiki) が衝突するので併存させない。
+cask "shsw228/tap/yashiki-fork"
 cask "vial"
 cask "whatcable"
 cask "zed"
