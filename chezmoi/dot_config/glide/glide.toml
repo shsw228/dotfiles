@@ -9,9 +9,10 @@
 [settings]
 animate = true
 
-# スペース単位のオプトイン (既定)。Alt+Z で現在のスペースを管理下に入れる。
-# 試験中は暴発時の影響範囲が狭いこちらのままにしておく。
-default_disable = true
+# 起動時から各スペースを管理下に置く。既定 (true) は「スペースごとに Alt+Z で
+# 明示的に有効化する」オプトイン方式で、ログインのたびに押し直しになるため外す。
+# Alt+Z は引き続きスペース単位のトグルとして使える。
+default_disable = false
 
 # yashiki の set-cursor-warp on-focus-change 相当。
 mouse_follows_focus = true
