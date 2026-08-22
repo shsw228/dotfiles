@@ -1,0 +1,59 @@
+# Glide (タイル型WM) の試験導入。yashiki からの切り替え中。
+#
+# 確定するまで sketchybar と borders は動かさない。どちらも yashiki の init が
+# exec --track で起動していたので、yashiki を止めれば連動して上がらなくなる。
+# glide には yashiki の subscribe に相当するイベント API がまだ無く、バーへ
+# ワークスペース状態を流す経路が無いため、無理に出しても中身が埋まらない。
+# 代わりに glide 自身の status icon をインジケータとして使う。
+
+[settings]
+animate = true
+
+# スペース単位のオプトイン (既定)。Alt+Z で現在のスペースを管理下に入れる。
+# 試験中は暴発時の影響範囲が狭いこちらのままにしておく。
+default_disable = true
+
+# yashiki の set-cursor-warp on-focus-change 相当。
+mouse_follows_focus = true
+mouse_hides_on_focus = true
+
+# yashiki は set-auto-raise disabled で「ホバーだけでは前面化しない」方針
+# だったので合わせる。
+focus_follows_mouse = false
+
+# yashiki は上端だけ 48 にして sketchybar の場所を空けていた
+# (set-outer-gap 48 12 12 12)。glide の outer_gap は全辺共通の単一値なので
+# 上端だけを広げることはできない。sketchybar を出す段でここを見直す。
+outer_gap = 12
+inner_gap = 10
+
+default_layout_kind = "tree"
+
+group_bars.enable = true
+group_bars.thickness = 6
+group_bars.horizontal_placement = "top"
+group_bars.vertical_placement = "right"
+
+# sketchybar を止めている間、これが唯一の状態表示になる。
+status_icon.enable = true
+
+# 既定キーを土台にして、下の [keys] で食い違う分だけ上書きする。[keys] を
+# 書くと既定キーは既定で無効になるので、明示的に有効化する必要がある。
+default_keys = true
+
+[settings.experimental]
+# どのスペースに居るか分からなくなるのを防ぐ。sketchybar のタグ表示の代替。
+status_icon.space_index = true
+status_icon.color = false
+
+[keys]
+# hjkl の focus / Shift+hjkl の move / Alt+Ctrl+hjkl の resize / Alt+F の
+# fullscreen は既定のまま yashiki と一致しているので書かない。
+#
+# yashiki は alt-space が window-toggle-float だった。glide の既定は逆
+# (Alt+Space が focus 側) なので入れ替える。
+"Alt + Space" = "toggle_window_floating"
+"Alt + Shift + Space" = "toggle_focus_floating"
+
+# yashiki の alt-shift-s 相当。
+"Alt + Shift + S" = { exec = ["/bin/sh", "-c", "screencapture -i -c"] }

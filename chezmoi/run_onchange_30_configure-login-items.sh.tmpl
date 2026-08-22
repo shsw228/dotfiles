@@ -46,6 +46,20 @@ if [ -n "$brew_cmd" ]; then
   done
 fi
 
+{{- $wm := dig "wm" "kind" "yashiki" . }}
+{{ if ne $wm "yashiki" -}}
+# 自動起動するWMは data.wm.kind = {{ $wm | quote }}。yashiki は動かさない。
+#
+# LaunchAgent は KeepAlive なので、止めるには bootout してラベルを外す必要がある。
+# launchd はジョブ終了時にプロセスグループごと落とすので、yashiki の init が
+# exec --track で起動した sketchybar / borders / display_watcher.sh もここで
+# まとめて落ちる。sketchybar を出したくなったら別途起こす。
+#
+# plist は残す。data.wm.kind を yashiki に戻して apply すれば下の分岐が
+# bootstrap し直す。
+launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
+
+{{ else -}}
 # Yashiki(タイル型WM)を LaunchAgent で起動する。
 #
 # ログイン項目ではなく LaunchAgent なのは、クラッシュ時に連携プロセスを道連れに
@@ -111,3 +125,4 @@ PLIST
     launchctl bootstrap "gui/$(id -u)" "$plist" 2>/dev/null || true
   fi
 fi
+{{ end -}}

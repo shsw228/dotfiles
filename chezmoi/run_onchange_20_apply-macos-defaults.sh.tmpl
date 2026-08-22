@@ -8,7 +8,10 @@ defaults write NSGlobalDomain NSAutomaticDashSubstitutionEnabled -bool false
 defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false
 defaults write NSGlobalDomain AppleInterfaceStyle -string Dark
 defaults write NSGlobalDomain NSWindowResizeTime -float 0.001
-# メニューバーを自動非表示（sketchybar を主バーとして使うため）。
+{{- $wm := dig "wm" "kind" "yashiki" . }}
+# メニューバーの自動非表示。sketchybar を主バーとして使う構成でだけ有効にする。
+# glide 試験中は sketchybar を動かしていないので、非表示にすると状態表示が
+# 何も残らない（glide 自身の status icon もメニューバーに出る）。
 #
 # defaults write NSGlobalDomain _HIHideMenuBar は使わない。書き込み先は同じだが、
 # 直接書くと即時反映されず、さらに反映された時点で
@@ -18,8 +21,13 @@ defaults write NSGlobalDomain NSWindowResizeTime -float 0.001
 #
 # System Events 経由なら即時に反映され、通知も飛ぶので display_watcher.sh が
 # 拾って gap とバー位置を当て直す。
-if [ "$(osascript -e 'tell application "System Events" to tell dock preferences to get autohide menu bar' 2>/dev/null)" != "true" ]; then
-  osascript -e 'tell application "System Events" to tell dock preferences to set autohide menu bar to true' >/dev/null 2>&1 || true
+{{ if eq $wm "yashiki" -}}
+want="true"
+{{ else -}}
+want="false"
+{{ end -}}
+if [ "$(osascript -e 'tell application "System Events" to tell dock preferences to get autohide menu bar' 2>/dev/null)" != "$want" ]; then
+  osascript -e "tell application \"System Events\" to tell dock preferences to set autohide menu bar to $want" >/dev/null 2>&1 || true
 fi
 
 defaults write com.apple.finder AppleShowAllExtensions -bool true
