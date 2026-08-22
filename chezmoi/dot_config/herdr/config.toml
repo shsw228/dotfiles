@@ -1,4 +1,8 @@
 onboarding = false
+
+[keys]
+prefix = "ctrl+q"
+
 [ui]
 agent_panel_sort = "spaces"
 
@@ -6,7 +10,7 @@ agent_panel_sort = "spaces"
 delivery = "herdr"
 
 [experimental]
-switch_ascii_input_source_in_prefix = false
+switch_ascii_input_source_in_prefix = true
 
 [theme]
 name = "catppuccin"
