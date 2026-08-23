@@ -12,17 +12,14 @@ if [ "${CHEZMOI_CI:-0}" = "1" ]; then
   exit 0
 fi
 
-# brew の rustup は shim を /opt/homebrew/bin に link しないので、
-# PATH が通っていない状況でも拾えるよう opt 側を直接見る。
-rustup_bin=/opt/homebrew/opt/rustup/bin
+# brew の rustup は keg-only なので shim が PATH に入らない。cargo は rustc を
+# PATH から探すため、絶対パスで叩くのでは足りず shim ディレクトリごと通す必要がある。
+# .zshenv も同じ行を持つが、新規マシンの初回 apply では apply 自身がそれを書く
+# ところなので、まだ効いていない。
+PATH="/opt/homebrew/opt/rustup/bin:$PATH"
+export PATH
 
-if command -v cargo >/dev/null 2>&1; then
-  cargo_cmd="$(command -v cargo)"
-elif [ -x "$rustup_bin/cargo" ]; then
-  cargo_cmd="$rustup_bin/cargo"
-elif [ -x "${HOME}/.cargo/bin/cargo" ]; then
-  cargo_cmd="${HOME}/.cargo/bin/cargo"
-else
+if ! command -v cargo >/dev/null 2>&1; then
   # Brewfile の rustup は run_onchange_10 で入る。まだ無いなら次の apply に回す。
   echo "yashiki-bridge: cargo が無いのでビルドを飛ばす" >&2
   exit 0
@@ -30,15 +27,16 @@ fi
 
 # rustup を入れただけでは toolchain が無く、shim を叩いても失敗する。
 # 新しい端末での初回だけ stable を落としてくる。
-if [ -x "$rustup_bin/rustup" ] && \
-   "$rustup_bin/rustup" toolchain list 2>/dev/null | grep -q "no installed"; then
+# ビルドしかしないので minimal。default profile が足す rust-docs は 900MB 近い。
+if rustup toolchain list 2>/dev/null | grep -q "no installed"; then
   echo "yashiki-bridge: rust の toolchain が無いので stable を入れる" >&2
-  "$rustup_bin/rustup" default stable
+  rustup toolchain install --profile minimal stable
+  rustup default stable
 fi
 
 crate="{{ .chezmoi.sourceDir }}/yashiki-bridge"
 
-"$cargo_cmd" build --release --locked --manifest-path "${crate}/Cargo.toml"
+cargo build --release --locked --manifest-path "${crate}/Cargo.toml"
 
 mkdir -p "${HOME}/.local/bin"
 install -m 755 "${crate}/target/release/yashiki-bridge" "${HOME}/.local/bin/yashiki-bridge"
