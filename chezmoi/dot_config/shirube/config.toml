@@ -1,0 +1,21 @@
+# ^r の移動メニュー shirube が見る先。上から順にグループとして並ぶ。
+# https://github.com/shsw228/shirube
+
+[[source]]
+label = "ghq"
+command = ["ghq", "list", "--full-path"]
+
+# 受託案件をまとめる場所。depth は root から数えた階層数で、root 自身は含めない。
+[[source]]
+label = "work"
+path = "~/Developer/work"
+depth = 2
+
+# 並び順は zoxide の履歴に従う。^g の zoxide と ^r の shirube で別々の履歴を
+# 持つと、どちらも育たないため。
+#
+# record は書かない。zoxide init zsh が chpwd フックを入れているので、
+# widget がした cd はそれだけで zoxide に記録される。ここで zoxide add を
+# 呼ぶと同じ移動を二重に数えることになる。
+[history]
+rank = ["zoxide", "query", "--list"]
