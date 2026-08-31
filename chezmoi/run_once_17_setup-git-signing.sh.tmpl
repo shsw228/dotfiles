@@ -38,13 +38,23 @@ if ! sc_auth list-ctk-identities | grep -q "$label"; then
 fi
 
 # -K は resident key をカレントディレクトリに書き出すので一時ディレクトリで実行する。
-# 出力名は id_ecdsa_sk_rk_<label>。PIN を聞かれるが -t none の鍵なので空で通る。
+# PIN を聞かれるが -t none の鍵なので空で通る。
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 (cd "$tmp" && ssh-keygen -w "$provider" -K -N "" >/dev/null 2>&1) </dev/null || true
 
-src="$tmp/id_ecdsa_sk_rk_$label"
-if [ ! -f "$src" ]; then
+# 出力名は id_ecdsa_sk_rk_<label> と id_ecdsa_sk_rk のどちらにもなる (macOS 26 は後者)。
+src=""
+for f in "$tmp"/id_ecdsa_sk_rk*; do
+  case "$f" in
+  *.pub) continue ;;
+  esac
+  [ -f "$f" ] || continue
+  src="$f"
+  break
+done
+
+if [ -z "$src" ]; then
   printf '\033[31m✖\033[0m Secure Enclave から鍵ハンドルを取り出せませんでした\n' >&2
   exit 1
 fi

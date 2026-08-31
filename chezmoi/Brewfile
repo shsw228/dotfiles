@@ -39,6 +39,9 @@ brew "sheldon"
 # ^r のディレクトリ移動 TUI。tap の formula はリリース資産を張るだけ。
 brew "shsw228/tap/shirube"
 brew "starship"
+# nvim-treesitter (main ブランチ) がパーサのビルドに `tree-sitter build` を呼ぶため。
+# neovim が依存する tree-sitter formula はランタイムライブラリのみで CLI を含まない。
+brew "tree-sitter-cli"
 brew "xcodegen"
 brew "xcodes", link: false
 brew "yammerjp/tap/pdef"
