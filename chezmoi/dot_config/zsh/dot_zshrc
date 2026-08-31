@@ -109,39 +109,18 @@ case $- in
     zle -N _fzf-cdr
     bindkey '^d' _fzf-cdr
 
-    function _fzf_cd_ghq() {
-      FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS} --reverse"
+    # ディレクトリ移動メニュー。列挙も描画も shirube が持っていて、
+    # 選ばれたパスだけが stdout に返る。移動先は ~/.config/shirube/roots。
+    function _shirube() {
       local target
-      target="$(
-        ghq list --full-path \
-          | awk -F/ '{
-              full[NR] = $0
-              owner = NF >= 2 ? $(NF - 1) : $0
-              repo = $NF
-              owners[NR] = owner
-              repos[NR] = repo
-              if (length(owner) > max_owner) {
-                max_owner = length(owner)
-              }
-            }
-            END {
-              for (i = 1; i <= NR; i++) {
-                printf "%s\t%-*s  %s\n", full[i], max_owner, owners[i], repos[i]
-              }
-            }' \
-          | fzf --delimiter=$'\t' --with-nth=2.. --preview='ls -AF --color=always {1}' \
-          | cut -f1
-      )"
-      if [ -z "${target}" ]; then
-        zle reset-prompt
-        return
+      target="$(shirube)"
+      if [ -n "${target}" ]; then
+        cd "${target}" || return
       fi
-
-      cd "${target}" || return
       zle reset-prompt
     }
-    zle -N _fzf_cd_ghq
-    bindkey '^r' _fzf_cd_ghq
+    zle -N _shirube
+    bindkey '^r' _shirube
     ;;
 esac
 
