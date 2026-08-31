@@ -233,32 +233,49 @@ forget_display() {
 
 LAST_GEOM=""
 
-# Read the bar position and height, used to compute gap.top per display.
+# The bar's y_offset and height, as bar.lua resolved them.
 #
-# Right after --reload, sketchybar reports its defaults (y_offset=0, height=25)
-# until the configuration finishes loading. Those are plausible numbers, so a
-# range check cannot reject them. Wait until the same values come back twice to
-# be sure the configuration has been applied.
-sketchybar_bar_metrics() {
-  local i out cur prev stable
-  prev=""
-  stable=0
-  for i in $(seq 1 20); do
-    out=$("$SKETCHYBAR" --query bar 2>/dev/null)
-    cur=$(printf '%s' "$out" | jq -r '"\(.y_offset // "") \(.height // "")"' 2>/dev/null)
-    case "$cur" in
-      ''|*[!0-9\ ]*|' '*|*' ') cur="" ;;
-    esac
-    if [ -n "$cur" ] && [ "$cur" = "$prev" ]; then
-      stable=$((stable + 1))
-      if [ "$stable" -ge 2 ]; then
-        printf '%s' "$cur"
-        return 0
-      fi
-    else
-      stable=0
+# Not --query bar. Until the configuration finishes loading, sketchybar answers
+# with its defaults (y_offset=0, height=25). Those are plausible numbers, so a
+# range check cannot reject them, and they come back steadily enough to pass a
+# "same value twice" check too -- which is how gap.top ended up at 0+25+8=33
+# instead of 8+32+8=48, leaving every window 15px too high and 7px of it behind
+# the bar.
+#
+# bar.lua publishes the values it actually used. reset_bar_metrics removes the
+# file before --reload, so a file that exists again can only have been written
+# by the configuration that just loaded. No clock comparison, nothing to tune.
+BAR_METRICS_FILE="$HOME/.cache/yashiki/bar_metrics"
+
+reset_bar_metrics() {
+  rm -f "$BAR_METRICS_FILE" 2>/dev/null || true
+}
+
+# Wait for bar.lua to publish, printing "y_offset height".
+#
+# A cold sketchybar takes a couple of seconds, and init starts it only at its
+# very end, so the budget has to cover that: 60 * 0.2s = 12s. Normally the file
+# is there on the first or second look.
+wait_bar_metrics() {
+  local i line yoff height
+  for i in $(seq 1 60); do
+    if [ -f "$BAR_METRICS_FILE" ]; then
+      line=$(cat "$BAR_METRICS_FILE" 2>/dev/null)
+      # Exactly two fields, or it is a partial write we should not trust
+      case "$line" in
+        *' '*' '*) ;;
+        *' '*)
+          yoff=${line%% *}
+          height=${line##* }
+          case "$yoff"   in ''|*[!0-9]*) yoff="" ;;   esac
+          case "$height" in ''|*[!0-9]*) height="" ;; esac
+          if [ -n "$yoff" ] && [ -n "$height" ] && [ "$height" -gt 0 ]; then
+            printf '%s %s' "$yoff" "$height"
+            return 0
+          fi
+          ;;
+      esac
     fi
-    prev="$cur"
     sleep 0.2
   done
   return 1
@@ -302,9 +319,16 @@ publish_main_inset() {
 apply_outer_gaps() {
   local metrics yoff height base id inset top
   [ -x "$SKETCHYBAR" ] || return 0
-  metrics=$(sketchybar_bar_metrics) || {
-    log "  sketchybar の値を取得できず gap 計算を見送り"
-    return 0
+  metrics=$(wait_bar_metrics) || {
+    # bar.lua が書かなかった。設定のロードが落ちたか、reset のあと --reload が
+    # 届かなかった。もう一度 reload して待ち直す。
+    log "  bar.lua の metrics が出てこない -> reload をやり直す"
+    reset_bar_metrics
+    "$SKETCHYBAR" --reload >/dev/null 2>&1 </dev/null
+    metrics=$(wait_bar_metrics) || {
+      log "  metrics を取得できず gap 計算を見送り"
+      return 0
+    }
   }
   yoff=${metrics% *}
   height=${metrics#* }
@@ -338,6 +362,9 @@ settle() {
   # Publish the inset first: bar.lua reads it during the reload, so writing it
   # afterwards would place the bar with the previous value.
   publish_main_inset
+  # Drop the published metrics next, so whatever turns up afterwards is known to
+  # come from the reload below and not from the configuration already running.
+  reset_bar_metrics
   # Then reload. The gaps derive from the post-reload y_offset, so this order
   # cannot be swapped.
   [ -x "$SKETCHYBAR" ] && "$SKETCHYBAR" --reload >/dev/null 2>&1 </dev/null
@@ -382,9 +409,9 @@ subscribe_once() {
           # never reloads it, so without this a sketchybar that came up before
           # the inset was written keeps the previous value.
           #
-          # sketchybar need not be up yet: sketchybar_bar_metrics inside
-          # apply_outer_gaps retries for up to four seconds, long enough for
-          # init to start it.
+          # sketchybar need not be up yet: wait_bar_metrics inside
+          # apply_outer_gaps waits up to twelve seconds for bar.lua to publish,
+          # long enough for init to start it.
           absorb_snapshot "$line"
           log "snapshot を取り込み -> 初期化"
           LAST_GEOM=""
