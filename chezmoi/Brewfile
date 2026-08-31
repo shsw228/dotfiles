@@ -36,6 +36,8 @@ brew "pnpm"
 # shim を置くだけで toolchain は入らないので、実体は run_onchange_14 が入れる。
 brew "rustup"
 brew "sheldon"
+# ^r のディレクトリ移動 TUI。tap の formula はリリース資産を張るだけ。
+brew "shsw228/tap/shirube"
 brew "starship"
 # nvim-treesitter (main ブランチ) がパーサのビルドに `tree-sitter build` を呼ぶため。
 # neovim が依存する tree-sitter formula はランタイムライブラリのみで CLI を含まない。
