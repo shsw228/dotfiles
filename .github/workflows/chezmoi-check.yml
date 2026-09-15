@@ -89,6 +89,8 @@ jobs:
           done <<'EOF_TARGETS'
           .config/git/config
           .local/bin/ssh-sign
+          .local/bin/keepresso-settings-export
+          .local/bin/brew-drift
           .ssh/allowed_signers
           .config/sheldon/plugins.toml
           .config/zsh/.zprofile
@@ -113,6 +115,8 @@ jobs:
 
           test -f "$home/.config/git/config"
           test -x "$home/.local/bin/ssh-sign"
+          test -x "$home/.local/bin/keepresso-settings-export"
+          test -x "$home/.local/bin/brew-drift"
           test -f "$home/.ssh/allowed_signers"
           test -f "$home/.config/sheldon/plugins.toml"
           test -f "$home/.config/zsh/.zprofile"
@@ -136,11 +140,14 @@ jobs:
           sh -n "$GITHUB_WORKSPACE/chezmoi/dot_claude/modify_settings.json"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_14_build-yashiki-bridge.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_22_apply-keepresso-settings.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_50_set-ssh-auth-sock.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_60_finalize-ssh-remote.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_17_setup-git-signing.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/dot_local/bin/executable_ssh-sign"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/dot_local/bin/executable_keepresso-settings-export"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/dot_local/bin/executable_brew-drift"
           sh -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_init"
           bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_display_watcher.sh"
           bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_focus_watcher.sh"

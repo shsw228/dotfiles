@@ -2,3 +2,7 @@ cask "altserver"
 cask "discord"
 cask "kicad"
 brew "mint"
+
+# Things は有料購入なので、購入した Apple ID のマシンでだけ入る。
+mas "Things", id: 904280696
+mas "try! Tokyo", id: 6479317240

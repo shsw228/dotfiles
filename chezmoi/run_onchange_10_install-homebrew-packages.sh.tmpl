@@ -14,7 +14,9 @@ else
 fi
 
 tmp_brewfile="$(mktemp)"
-trap 'rm -f "$tmp_brewfile"' EXIT
+main_brewfile="$(mktemp)"
+mas_brewfile="$(mktemp)"
+trap 'rm -f "$tmp_brewfile" "$main_brewfile" "$mas_brewfile"' EXIT
 
 cat >"$tmp_brewfile" <<'EOF_BREWFILE'
 {{ include "Brewfile" }}
@@ -41,4 +43,28 @@ if "$brew_cmd" trust --help >/dev/null 2>&1; then
   done
 fi
 
-"$brew_cmd" bundle --file="$tmp_brewfile"
+# Mac App Store 由来 (mas 行) は本体と分けて流す。理由が二つある。
+#
+# 1. --no-upgrade が要る。mas 7 の upgrade は sudo を要求するので、outdated な
+#    MAS アプリが一つでもあると非対話の apply では必ず失敗する。かといって本体の
+#    bundle に --no-upgrade を付けると formula/cask の更新まで止まってしまう。
+#    MAS 分だけ分ければ、未導入のアプリは入れつつ更新は App Store に任せられる。
+# 2. 失敗しても止めない。App Store にサインインしていないと install は失敗し、
+#    mas からサインインする手段は無い (Apple が CLI 経由のサインインを塞いだため。
+#    mas に signout があって signin が無いのはこれが理由)。購入していない有料
+#    アプリや配信地域外でも同じ。bundle ごと非 0 で終わると後続の run_onchange
+#    (12 の de-quarantine、22 の Keepresso 設定) まで巻き添えで止まる。
+grep -E '^[[:space:]]*mas[[:space:]]+"' "$tmp_brewfile" >"$mas_brewfile" || true
+grep -vE '^[[:space:]]*mas[[:space:]]+"' "$tmp_brewfile" >"$main_brewfile" || true
+
+"$brew_cmd" bundle --file="$main_brewfile"
+
+# mas 本体は上の bundle で入るので、その後に流す。
+if [ -s "$mas_brewfile" ]; then
+  if ! "$brew_cmd" bundle --no-upgrade --file="$mas_brewfile"; then
+    echo "" >&2
+    echo "Mac App Store のアプリを入れられませんでした。スキップして続行します。" >&2
+    echo "  App Store.app でサインインしているか確認してください" >&2
+    echo "  (mas にはサインイン機能がないため手動で行う必要があります)" >&2
+  fi
+fi

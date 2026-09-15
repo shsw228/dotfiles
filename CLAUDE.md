@@ -22,6 +22,11 @@ chezmoi status
 # Install/sync Homebrew packages only
 brew bundle --file=chezmoi/Brewfile
 
+# Report drift between the Brewfile and what is actually installed (read-only)
+brew-drift
+# Remove everything not declared in the Brewfile (asks for confirmation)
+brew-drift --cleanup
+
 # Syntax-check shell files before committing
 sh -n chezmoi/run_onchange_*.sh.tmpl chezmoi/run_once_*.sh.tmpl
 zsh -n chezmoi/dot_zshrc chezmoi/dot_zshenv chezmoi/dot_zprofile

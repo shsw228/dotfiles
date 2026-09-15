@@ -1,0 +1,44 @@
+#!/bin/sh
+# Keepresso の設定を、アプリの「Export Settings…」と同じ封筒形式で標準出力に出す。
+#
+# Keepresso は ~/.config を一切読まない。設定は UserDefaults の単一キー
+# sh.gyorgy.keepresso.settings.v1 に JSON を NSData で詰めた形でしか存在しない
+# ので、dotfiles へ取り込むにはここから吸い出す。
+# 封筒 (format/version/appVersion/settings) はアプリの SettingsTransfer と同じ
+# 形にしてあるため、出力はそのまま GUI の Import Settings… でも読める。
+#
+# キー名自体にドットが入っている。plutil のキーパスは . を区切りとして解釈する
+# ので、-extract に渡す側はエスケープが要る (defaults write 側は素のまま)。
+#
+# 使い方:
+#   keepresso-settings-export > chezmoi/keepresso-settings.json
+set -eu
+
+domain="sh.gyorgy.keepresso"
+key_path='sh\.gyorgy\.keepresso\.settings\.v1'
+app="/Applications/Keepresso.app"
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "keepresso-settings-export: jq が見つかりません" >&2
+  exit 1
+fi
+
+settings="$(defaults export "$domain" - 2>/dev/null \
+  | plutil -extract "$key_path" raw -o - -- - 2>/dev/null \
+  | base64 -d 2>/dev/null)" || settings=""
+
+if [ -z "$settings" ]; then
+  echo "keepresso-settings-export: $domain に設定が見つかりません" >&2
+  echo "  Keepresso を一度起動して設定を保存してから実行してください" >&2
+  exit 1
+fi
+
+app_version="$(defaults read "$app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || true)"
+
+# -S でキーを整列。アプリ側も sortedKeys + prettyPrinted で書くので diff が安定する。
+printf '%s' "$settings" | jq -S --arg v "$app_version" '{
+  format: "keepresso.settings",
+  version: 1,
+  appVersion: (if $v == "" then null else $v end),
+  settings: .
+}'
