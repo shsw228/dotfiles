@@ -1,7 +1,9 @@
 tap "abue-ammar/tinycast"
 tap "shsw228/tap"
 tap "arto-app/tap"
+tap "cameroncooke/axe"
 tap "felixkratz/formulae"
+tap "gyorgysh/keepresso"
 tap "kyome22/tap"
 tap "laishulu/homebrew"
 tap "yammerjp/tap"
@@ -10,6 +12,8 @@ brew "aria2"
 brew "asc"
 brew "bash"
 brew "bat"
+# iOS シミュレータを accessibility / HID API 経由で操作する CLI。
+brew "cameroncooke/axe/axe"
 brew "cookcli"
 brew "coreutils"
 brew "dotnet"
@@ -28,6 +32,9 @@ brew "laishulu/homebrew/macism"
 brew "lazygit"
 brew "lua"
 brew "make"
+# Mac App Store アプリを宣言的に入れる。App Store へのサインインが前提で、
+# mas からはサインインできない (Apple が CLI 経由のサインインを塞いだため)。
+brew "mas"
 brew "msitools"
 brew "neovim"
 brew "node"
@@ -62,6 +69,8 @@ cask "ghostty"
 cask "google-chrome"
 cask "hazeover"
 cask "karabiner-elements"
+# スリープ抑止。アプリ起動中/特定 Wi-Fi 接続中などの条件トリガーを持つ。
+cask "gyorgysh/keepresso/keepresso"
 cask "keycastr"
 cask "kid3"
 cask "macshot"
@@ -78,3 +87,15 @@ cask "shsw228/tap/yashiki-fork"
 cask "vial"
 cask "whatcable"
 cask "zed"
+
+# Mac App Store 由来のアプリ。cask が無いか、Safari 拡張のように Apple の
+# 配布制約で App Store 以外の入手経路が存在しないものだけをここに置く。
+mas "1Password for Safari", id: 1569813296
+mas "Bookmarks", id: 1590304377
+mas "Developer", id: 640199958
+mas "Gifski", id: 1351639930
+mas "Keynote", id: 361285480
+mas "RunCat", id: 1429033973
+mas "Swift Playground", id: 1496833156
+mas "uBlacklist for Safari", id: 1547912640
+mas "Userscripts", id: 1463298887

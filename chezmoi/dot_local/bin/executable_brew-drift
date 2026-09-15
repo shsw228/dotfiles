@@ -1,0 +1,122 @@
+#!/bin/sh
+# Brewfile の宣言と実際にインストールされているものの差分を出す。
+#
+# brew bundle は「宣言にあるものを入れる」だけで「宣言に無いものを消す」はしない。
+# 手で brew install したものが際限なく溜まるので、週次の見直しで可視化する。
+#
+# 既定は報告のみで何も消さない。消すのは --cleanup を明示したときだけ。
+# 報告モードは差分の有無によらず exit 0 を返す。apply や CI から呼んでもフローを
+# 止めないため (brew bundle cleanup 自体は差分があると 1 を返す)。
+set -eu
+
+do_cleanup=0
+case "${1:-}" in
+  --cleanup) do_cleanup=1 ;;
+  "") ;;
+  *) echo "usage: brew-drift [--cleanup]" >&2; exit 64 ;;
+esac
+
+command -v brew >/dev/null 2>&1 || { echo "brew-drift: Homebrew が無い" >&2; exit 1; }
+
+source_dir="$(chezmoi source-path 2>/dev/null)" || source_dir=""
+if [ -z "$source_dir" ] || [ ! -f "$source_dir/Brewfile" ]; then
+  echo "brew-drift: Brewfile が無い (chezmoi source-path=$source_dir)" >&2
+  exit 1
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+merged="$work/Brewfile"
+cat "$source_dir/Brewfile" >"$merged"
+
+# 個人 PC では Brewfile.personal も宣言に含める。忘れると personal 側が
+# 「宣言外」に見え、消してはいけないものを消す判断に繋がる。
+is_personal="$(chezmoi data 2>/dev/null | jq -r '.profile.is_personal_pc // true' 2>/dev/null)" || is_personal="true"
+if [ "$is_personal" = "true" ] && [ -f "$source_dir/Brewfile.personal" ]; then
+  cat "$source_dir/Brewfile.personal" >>"$merged"
+fi
+
+# 宣言名は tap 付きと素の両方を候補に入れる。Brewfile は tap 付きで書くが
+# brew list は文脈で表記が変わるため。
+decl() {
+  sed -n "s/^[[:space:]]*$1 \"\([^\"]*\)\".*/\1/p" "$merged" | while IFS= read -r n; do
+    printf '%s\n%s\n' "$n" "${n##*/}"
+  done
+}
+decl brew | sort -u >"$work/decl_brew"
+decl cask | sort -u >"$work/decl_cask"
+decl tap  | sort -u >"$work/decl_tap"
+
+# leaves は trust されていない tap の formula を落とす (brew が読み飛ばすため、
+# axe などが見えなくなる)。tap 付きの一覧と合わせて取りこぼしを防ぐ。
+{ brew leaves --installed-on-request 2>/dev/null || true
+  brew list --formula --full-name 2>/dev/null | grep '/' || true
+} | sort -u >"$work/have_brew"
+brew list --cask --full-name 2>/dev/null | sort -u >"$work/have_cask"
+
+# 宣言と実体で tap 接頭辞の有無が食い違う (Brewfile は cask "arto" でも
+# brew list --full-name は arto-app/tap/arto を返す)。両表記で突き合わせる。
+undeclared() {
+  while IFS= read -r n; do
+    [ -z "$n" ] && continue
+    grep -qx "$n" "$2" && continue
+    grep -qx "${n##*/}" "$2" && continue
+    printf '%s\n' "$n"
+  done <"$1"
+}
+
+report() {
+  printf '\n== %s ==\n' "$1"
+  if [ -s "$2" ]; then sed 's/^/  /' "$2"; else echo "  (なし)"; fi
+}
+
+# check は結果を stderr に出す (stdout は空)。捨てると常に「なし」になる。
+brew bundle check --file="$merged" --verbose 2>&1 >/dev/null \
+  | sed -n 's/^→ //p' >"$work/missing" || true
+# check は未インストールと更新待ちを区別しないので、見出しも両方を含める。
+report "宣言を満たしていない (未インストール / 更新待ち)" "$work/missing"
+
+undeclared "$work/have_brew" "$work/decl_brew" >"$work/extra_brew"
+report "宣言外の formula" "$work/extra_brew"
+
+undeclared "$work/have_cask" "$work/decl_cask" >"$work/extra_cask"
+report "宣言外の cask" "$work/extra_cask"
+
+# tap は単独では無害だが、cleanup が untap するので何が入っているか併記する。
+# 未 trust の formula は cleanup が読み飛ばす一方 untap はされる。tap だけ消えて
+# 中身が残る不整合になるため、ここで気づけるようにしておく。
+: >"$work/extra_tap"
+brew tap | while IFS= read -r t; do
+  grep -qx "$t" "$work/decl_tap" && continue
+  n=$(brew list --formula --full-name 2>/dev/null | grep -c "^$t/" || true)
+  m=$(brew list --cask --full-name 2>/dev/null | grep -c "^$t/" || true)
+  if [ "$n" = "0" ] && [ "$m" = "0" ]; then
+    printf '%s (未使用)\n' "$t" >>"$work/extra_tap"
+  else
+    printf '%s → formula %s, cask %s が入っています\n' "$t" "$n" "$m" >>"$work/extra_tap"
+  fi
+done
+report "宣言外の tap" "$work/extra_tap"
+
+if [ "$do_cleanup" != "1" ]; then
+  cat <<'NOTE'
+
+報告のみ。実際に削除するには brew-drift --cleanup を実行してください。
+削除対象には上記の依存パッケージも含まれます (brew bundle cleanup が判断)。
+注意: cleanup は trust ストアも Brewfile の宣言に揃えるため、宣言していない
+      tap の trust は失われます。
+NOTE
+  exit 0
+fi
+
+echo
+echo "brew bundle cleanup を実行します。削除される全量は以下のとおりです。"
+echo
+brew bundle cleanup --file="$merged" || true
+echo
+printf '実行しますか? [y/N] '
+read -r answer
+case "$answer" in
+  y|Y) brew bundle cleanup --force --file="$merged" ;;
+  *) echo "中止しました。" ;;
+esac
