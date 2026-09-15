@@ -1,0 +1,89 @@
+#!/bin/sh
+# keepresso-settings.json を Keepresso の UserDefaults へ流し込む。
+#
+# Keepresso は ~/.config を読まず、設定は UserDefaults の単一キー
+# sh.gyorgy.keepresso.settings.v1 に JSON(NSData) で入る。書き出しは
+# ~/.local/bin/keepresso-settings-export が担当する。
+#
+# アプリは起動時に一度 load するだけで、UserDefaults の外部変更を監視しない。
+# 稼働中に書いても次に設定を保存した時点で丸ごと上書きされるので、必ず終了させて
+# から書き、元が動いていたら起動し直す。
+#
+# 注意: アプリの Import Settings… は取り込んだ eventHooks を安全側に倒して無効化
+# するが、この経路はそれを通らない。ソースの eventHooks はそのまま有効になるため、
+# リポジトリに入れるフックは中身を把握しているものだけにする。
+# keepresso-settings.json hash: {{ include "keepresso-settings.json" | sha256sum }}
+set -eu
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+if [ ! -d /Applications/Keepresso.app ]; then
+  exit 0
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq が見つからないため Keepresso 設定の適用をスキップします" >&2
+  exit 0
+fi
+
+domain="sh.gyorgy.keepresso"
+key="sh.gyorgy.keepresso.settings.v1"
+# plutil のキーパスは . を区切りに解釈するのでエスケープした別名が要る。
+key_path='sh\.gyorgy\.keepresso\.settings\.v1'
+
+want="$(mktemp)"
+trap 'rm -f "$want"' EXIT
+
+jq -cS '.settings' >"$want" <<'EOF_KEEPRESSO'
+{{ include "keepresso-settings.json" }}
+EOF_KEEPRESSO
+
+# 既に同じ内容ならアプリを落とさずに終わる。run_onchange はハッシュが変わった
+# ときだけ走るが、新規マシンの初回 apply でも走るので無駄な再起動を避ける。
+current="$(defaults export "$domain" - 2>/dev/null \
+  | plutil -extract "$key_path" raw -o - -- - 2>/dev/null \
+  | base64 -d 2>/dev/null \
+  | jq -cS . 2>/dev/null)" || current=""
+
+if [ -n "$current" ] && [ "$current" = "$(cat "$want")" ]; then
+  exit 0
+fi
+
+# 終了は AppleScript の quit ではなく SIGTERM を送る。
+# セッションが稼働中か蓋閉じモードのとき、Keepresso は終了確認モーダル
+# (QuitSleepModal) を出して applicationShouldTerminate を保留する。トリガーを
+# 有効にしていると常に該当するので、quit は返ってこず apply がダイアログ待ちで
+# 止まる (これで実際に嵌まった)。SIGTERM はこの経路を通らず即座に落ちる。
+was_running=0
+if pgrep -x Keepresso >/dev/null 2>&1; then
+  was_running=1
+  pkill -x Keepresso 2>/dev/null || true
+  i=0
+  while pgrep -x Keepresso >/dev/null 2>&1 && [ "$i" -lt 50 ]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+  if pgrep -x Keepresso >/dev/null 2>&1; then
+    pkill -9 -x Keepresso 2>/dev/null || true
+    i=0
+    while pgrep -x Keepresso >/dev/null 2>&1 && [ "$i" -lt 50 ]; do
+      sleep 0.1
+      i=$((i + 1))
+    done
+  fi
+fi
+
+# 生きたまま書くと、アプリが次に設定を保存した時点で丸ごと巻き戻る。
+# 落とせなかったときは書かずに諦める。黙って上書きされるより良い。
+if pgrep -x Keepresso >/dev/null 2>&1; then
+  echo "Keepresso を終了できないため設定の適用を見送ります" >&2
+  exit 0
+fi
+
+defaults write "$domain" "$key" -data "$(xxd -p "$want" | tr -d '\n')"
+
+if [ "$was_running" = "1" ]; then
+  open -a Keepresso >/dev/null 2>&1 || true
+fi

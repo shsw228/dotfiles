@@ -1,0 +1,285 @@
+{
+  "appVersion": "1.25.0",
+  "format": "keepresso.settings",
+  "settings": {
+    "automationLeasesEnabled": true,
+    "automationSync": {
+      "enabled": false,
+      "enabledSources": [],
+      "holdSeconds": 900,
+      "leadSeconds": 180,
+      "mutedIDs": []
+    },
+    "automationWakeControlEnabled": false,
+    "awdlAutoWithGaming": false,
+    "awdlGraceSeconds": 60,
+    "awdlNotifications": false,
+    "closedDisplayOnlyWhileBrewing": true,
+    "closedLidDisplayPolicy": "displayOff",
+    "controllerPokeWhileGaming": false,
+    "defaultMode": {
+      "indefinite": {}
+    },
+    "endAction": "none",
+    "eventHooks": [],
+    "gamePriorityBoost": false,
+    "glassClarity": 50,
+    "hasOnboarded": true,
+    "menuPanelExpanded": true,
+    "notifyOnEnd": true,
+    "options": {
+      "activitySimulationMethod": "powerWarp",
+      "dimFloor": 0,
+      "preventDisplaySleep": false,
+      "preventSystemSleep": true,
+      "simulateUserActivity": false
+    },
+    "presets": [
+      {
+        "id": "ai-agent",
+        "name": "AI Agent",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "agentActivity": {
+                "_0": {
+                  "countWaitingAsWorking": false,
+                  "grace": 180
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "on-ac-power",
+        "name": "On AC Power",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "powerSource": {
+                "_0": "onACPower"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "external-display",
+        "name": "External Display Connected",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "externalDisplay": {}
+            }
+          ]
+        }
+      },
+      {
+        "id": "remote-session",
+        "name": "Remote Session (SSH)",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "process": {
+                "_0": "sshd:"
+              }
+            },
+            {
+              "process": {
+                "_0": "sshd-session"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "backup-running",
+        "name": "Backup Running",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "process": {
+                "_0": "backupd"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "media-render",
+        "name": "Media Render",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "process": {
+                "_0": "ffmpeg"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "meetings",
+        "name": "Meetings",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "mediaInUse": {
+                "_0": "camera"
+              }
+            },
+            {
+              "mediaInUse": {
+                "_0": "microphone"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "gaming",
+        "name": "Gaming",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "gaming": {}
+            },
+            {
+              "controllerConnected": {}
+            },
+            {
+              "steamDownload": {}
+            },
+            {
+              "throughput": {
+                "kilobytesPerSecond": 1024
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "cloud-gaming",
+        "name": "Cloud Gaming",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "gaming": {}
+            },
+            {
+              "controllerConnected": {}
+            },
+            {
+              "steamDownload": {}
+            },
+            {
+              "app": {
+                "_0": {
+                  "bundleID": "com.nvidia.gfnpc.mall",
+                  "grace": 0,
+                  "match": "running",
+                  "name": "NVIDIA GeForce NOW"
+                }
+              }
+            },
+            {
+              "app": {
+                "_0": {
+                  "bundleID": "com.boosteroid.macclient",
+                  "grace": 0,
+                  "match": "running",
+                  "name": "Boosteroid"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "remote-control",
+        "name": "Remote Control",
+        "ruleSet": {
+          "combine": "any",
+          "rules": [
+            {
+              "app": {
+                "_0": {
+                  "bundleID": "com.teamviewer.TeamViewer",
+                  "grace": 120,
+                  "match": "frontmost",
+                  "name": "TeamViewer"
+                }
+              }
+            },
+            {
+              "app": {
+                "_0": {
+                  "bundleID": "com.philandro.anydesk",
+                  "grace": 120,
+                  "match": "frontmost",
+                  "name": "AnyDesk"
+                }
+              }
+            },
+            {
+              "app": {
+                "_0": {
+                  "bundleID": "tv.parsec.www",
+                  "grace": 120,
+                  "match": "frontmost",
+                  "name": "Parsec"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "quickStopDurations": [
+      900,
+      1800,
+      3600
+    ],
+    "reminderRepeats": false,
+    "reminderSound": true,
+    "ruleSet": {
+      "combine": "any",
+      "rules": [
+        {
+          "externalDisplay": {}
+        },
+        {
+          "wifiSSID": {
+            "_0": "aterm-b2a19d-a"
+          }
+        }
+      ]
+    },
+    "seededPresetIDs": [
+      "ai-agent",
+      "on-ac-power",
+      "external-display",
+      "remote-session",
+      "backup-running",
+      "media-render",
+      "meetings",
+      "gaming",
+      "cloud-gaming",
+      "remote-control"
+    ],
+    "showCountdownInMenuBar": false,
+    "startOnLaunch": false,
+    "triggersEnabled": true
+  },
+  "version": 1
+}
