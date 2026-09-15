@@ -30,7 +30,7 @@
     "options": {
       "activitySimulationMethod": "powerWarp",
       "dimFloor": 0,
-      "preventDisplaySleep": false,
+      "preventDisplaySleep": true,
       "preventSystemSleep": true,
       "simulateUserActivity": false
     },
