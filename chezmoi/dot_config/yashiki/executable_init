@@ -125,6 +125,16 @@ yashiki rule-add --app-id com.apple.Music output "Built-in"
 # System Settings refuses programmatic resize, so float it
 yashiki rule-add --app-id com.apple.systempreferences float
 
+# Finder のコピー/移動/ゴミ箱を空にする進捗ウィンドウ。AXStandardWindow かつ
+# level=normal なので通常の Finder ウィンドウと区別がつかず、タイルされて
+# レイアウトが崩れる。AXIdentifier=Progress は進捗ウィンドウだけに付き、
+# タイトル (コピー/ゴミ箱...) と違って言語に依存しない。
+#
+# 効くのは shsw228/yashiki#8 を含むビルド以降。それ以前は、このウィンドウが
+# WindowCreated ではなく移動イベント側の同期で拾われ、ルールが一度も評価
+# されないまま解決される。
+yashiki rule-add --app-id com.apple.finder --ax-id Progress float
+
 # The Wi-Fi captive portal is a short-lived helper window
 yashiki rule-add --app-id com.apple.CaptiveNetworkAssistant ignore
 
