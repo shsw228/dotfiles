@@ -10,6 +10,11 @@ tell application "System Events"
   if exists login item "Yashiki" then
     delete login item "Yashiki"
   end if
+
+  if not (exists login item "Tinycast") then
+    make new login item at end with properties ¬
+      {path:"/Applications/Tinycast.app", hidden:true}
+  end if
 end tell
 APPLESCRIPT
 
