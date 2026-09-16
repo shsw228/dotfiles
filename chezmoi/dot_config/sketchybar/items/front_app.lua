@@ -33,6 +33,6 @@ front:subscribe("front_app_switched", function(env)
   front:set({ label = { string = env.INFO or "" } })
 end)
 
-front:subscribe("yashiki_focus_change", function(env)
+front:subscribe("aerospace_focus_change", function(env)
   set_layout(env.FLOAT == "true")
 end)

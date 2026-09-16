@@ -21,7 +21,7 @@ return {
     icons = "Monaspace Neon",
   },
   paths = {
-    yashiki    = which("yashiki"),
+    aerospace  = which("aerospace"),
     sketchybar = which("sketchybar"),
   },
 }

@@ -46,48 +46,50 @@ if [ -n "$brew_cmd" ]; then
   done
 fi
 
-{{- $wm := dig "wm" "kind" "yashiki" . }}
-{{ if ne $wm "yashiki" -}}
-# 自動起動するWMは data.wm.kind = {{ $wm | quote }}。yashiki は動かさない。
+{{- $wm := dig "wm" "kind" "aerospace" . }}
+{{ if ne $wm "aerospace" -}}
+# 自動起動するWMは data.wm.kind = {{ $wm | quote }}。AeroSpace は動かさない。
 #
 # LaunchAgent は KeepAlive なので、止めるには bootout してラベルを外す必要がある。
-# launchd はジョブ終了時にプロセスグループごと落とすので、yashiki の init が
-# exec --track で起動した sketchybar / borders / display_watcher.sh もここで
-# まとめて落ちる。sketchybar を出したくなったら別途起こす。
+# launchd はジョブ終了時にプロセスグループごと落とすので、AeroSpace の
+# after-startup-command が起こした sketchybar / borders もここでまとめて落ちる。
+# sketchybar を出したくなったら別途起こす。
 #
 # 別のWMを試すときは、その自動起動をこの分岐に足す。
 #
-# plist は残す。data.wm.kind を yashiki に戻して apply すれば下の分岐が
+# plist は残す。data.wm.kind を aerospace に戻して apply すれば下の分岐が
 # bootstrap し直す。
+launchctl bootout "gui/$(id -u)/com.shsw228.aerospace" 2>/dev/null || true
+# yashiki 時代の LaunchAgent が残っていると二重に窓を奪い合う。
 launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
+rm -f "$HOME/Library/LaunchAgents/com.shsw228.yashiki.plist"
 
 {{ else -}}
-# Yashiki(タイル型WM)を LaunchAgent で起動する。
+# AeroSpace(タイル型WM)を LaunchAgent で起動する。
 #
+# AeroSpace 自身の start-at-login は使わない (aerospace.toml では false)。
 # ログイン項目ではなく LaunchAgent なのは、クラッシュ時に連携プロセスを道連れに
 # したいから。launchd はジョブ終了時にプロセスグループごと SIGKILL するので、
-# init が exec --track で起動した sketchybar / borders と display_watcher.sh が
-# まとめて落ちる。ログイン項目は launchd ジョブではないのでこれが効かず、
-# yashiki だけ死んで bar とウォッチャーが取り残される。
+# after-startup-command が起こした sketchybar と borders がまとめて落ちる。
+# ログイン項目は launchd ジョブではないのでこれが効かず、WM だけ死んで bar が
+# 取り残される。
 #
 # AbandonProcessGroup は既定 (false) のままにすること。true にすると上の連鎖が
 # 止まる。KeepAlive と組み合わせて「まとめて落ちて、まとめて上がり直す」にする。
 #
-# 起動先は fork ビルド。この dotfiles は fork 前提で、上流ビルドでは
-# メニューバー表示の切替に追従できず (display イベントが飛ばない)、
-# display_watcher.sh が使う set-outer-gap --output と physical_* も無い。
-#
-# 配置は Brewfile の cask "shsw228/tap/yashiki-fork" が行う。上流の cask とは
-# binary の張り先 (yashiki) が衝突するので併存させていない。上流に PR が
-# 取り込まれたら Brewfile を上流の cask に戻すだけでよい。
-plist="$HOME/Library/LaunchAgents/com.shsw228.yashiki.plist"
-app="/Applications/Yashiki-fork.app/Contents/MacOS/yashiki"
+# 配置は Brewfile の cask "nikitabobko/tap/aerospace" が行う。
+plist="$HOME/Library/LaunchAgents/com.shsw228.aerospace.plist"
+app="/Applications/AeroSpace.app/Contents/MacOS/AeroSpace"
+
+# yashiki から移ってきた環境では、前の LaunchAgent が残っていると窓を奪い合う。
+launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
+rm -f "$HOME/Library/LaunchAgents/com.shsw228.yashiki.plist"
 
 if [ ! -x "$app" ]; then
   # brew bundle より後に走る想定なので、ここで無いのは異常。
   # 黙って抜けると WM が上がらない理由が分からなくなる。
-  echo "yashiki: $app が見つかりません。" >&2
-  echo "         brew install --cask shsw228/tap/yashiki-fork を確認してください。" >&2
+  echo "aerospace: $app が見つかりません。" >&2
+  echo "           brew install --cask nikitabobko/tap/aerospace を確認してください。" >&2
 fi
 
 if [ -n "${app:-}" ] && [ -x "$app" ]; then
@@ -98,11 +100,10 @@ if [ -n "${app:-}" ] && [ -x "$app" ]; then
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.shsw228.yashiki</string>
+  <string>com.shsw228.aerospace</string>
   <key>ProgramArguments</key>
   <array>
     <string>$app</string>
-    <string>start</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
@@ -111,9 +112,9 @@ if [ -n "${app:-}" ] && [ -x "$app" ]; then
   <key>ProcessType</key>
   <string>Interactive</string>
   <key>StandardOutPath</key>
-  <string>$HOME/Library/Logs/yashiki.out.log</string>
+  <string>$HOME/Library/Logs/aerospace.out.log</string>
   <key>StandardErrorPath</key>
-  <string>$HOME/Library/Logs/yashiki.err.log</string>
+  <string>$HOME/Library/Logs/aerospace.err.log</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
@@ -123,9 +124,9 @@ if [ -n "${app:-}" ] && [ -x "$app" ]; then
 </plist>
 PLIST
 
-  # 既に daemon が動いているときは上げ直さない。別ビルドを手で動かしている最中に
-  # bootstrap すると二重起動になる。次回ログインで RunAtLoad が拾う。
-  if ! pgrep -f 'MacOS/yashiki start' >/dev/null 2>&1; then
+  # 既に動いているときは上げ直さない。手で起動している最中に bootstrap すると
+  # 二重起動になる。次回ログインで RunAtLoad が拾う。
+  if ! pgrep -f 'MacOS/AeroSpace' >/dev/null 2>&1; then
     launchctl bootstrap "gui/$(id -u)" "$plist" 2>/dev/null || true
   fi
 fi

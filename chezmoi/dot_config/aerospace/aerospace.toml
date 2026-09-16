@@ -1,0 +1,205 @@
+# AeroSpace 設定。yashiki から戻ってきた構成。
+#
+# yashiki のタグ (ビットマスクで複数所属可) は AeroSpace のワークスペース
+# (排他) に落とした。alt-ctrl-N の所属トグルに相当するものは無い。
+# tatami の master-stack も無いので、レイアウトは tiles に寄せている。
+
+# config-version 2 を明示する。1 のままだと persistent-workspaces を書けず、
+# 代わりにキーバインドから推論される。推論に頼ると alt-N のバインドを削った
+# 瞬間にそのワークスペースが消え、sketchybar の表示から抜ける。
+config-version = 2
+
+# 窓が無くなっても残すワークスペース。バーは 1..10 を常に並べるので、
+# 空でも生きていないと「占有なし」と「存在しない」の区別が付かなくなる。
+persistent-workspaces = ["1.Browser", "2.Terminal", "3.Xcode", "4.AI", "5", "6", "7", "8", "9", "10.Music"]
+
+# chezmoi apply でこのファイルが書き換わったら勝手に読み直す。
+# 有効化した初回だけ手動で reload-config する必要がある。
+auto-reload-config = true
+
+after-login-command = []
+after-startup-command = [
+  "exec-and-forget borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0",
+  "exec-and-forget /opt/homebrew/bin/sketchybar",
+]
+
+# ワークスペース切り替えと、フォーカス移動のたびに sketchybar へ状態を流す。
+# yashiki には state stream があったが AeroSpace には無いので、ここから
+# bridge を叩いて問い合わせ結果を --trigger で押し込む。
+exec-on-workspace-change = [
+  "/bin/sh",
+  "-c",
+  "$HOME/.config/sketchybar/plugins/aerospace_bridge.sh workspace",
+]
+
+on-focus-changed = [
+  "move-mouse window-lazy-center",
+  "exec-and-forget /bin/sh -c '$HOME/.config/sketchybar/plugins/aerospace_bridge.sh focus'",
+]
+
+# フォーカスがマウスに追随すると、乗せただけで前面が変わる。yashiki の
+# set-auto-raise disabled と同じく切っておく。既定値だが、意図して切っている
+# ことが分かるように明示する。
+focus-follows-mouse.enabled = false
+
+on-focused-monitor-changed = ["move-mouse monitor-lazy-center"]
+
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+default-root-container-layout = "tiles"
+default-root-container-orientation = "auto"
+automatically-unhide-macos-hidden-apps = true
+start-at-login = false
+
+[gaps]
+inner.horizontal = 10
+inner.vertical = 10
+# top は sketchybar の y_offset(8) + height(32) + 余白(8) = 48。
+# AeroSpace の gap は可視領域 (メニューバーの下) からなので、メニューバーを
+# 出している間はバーと重なるぶんだけ実効値が変わる。実機で詰める前提の初期値。
+outer.top = 48
+outer.bottom = 12
+outer.left = 12
+outer.right = 12
+
+[mode.main.binding]
+# フォーカス移動 / 入れ替え。端で折り返すのは yashiki の window-focus と同じ挙動。
+alt-h = "focus --boundaries-action wrap-around-the-workspace left"
+alt-j = "focus --boundaries-action wrap-around-the-workspace down"
+alt-k = "focus --boundaries-action wrap-around-the-workspace up"
+alt-l = "focus --boundaries-action wrap-around-the-workspace right"
+alt-shift-h = "move left"
+alt-shift-j = "move down"
+alt-shift-k = "move up"
+alt-shift-l = "move right"
+
+# ディスプレイ間の移動 (yashiki の output-focus / output-send)
+alt-o = "focus-monitor --wrap-around next"
+alt-shift-o = "move-node-to-monitor --wrap-around --focus-follows-window next"
+
+# 直前のワークスペースへ戻る (yashiki の tag-view-last)
+alt-tab = "workspace-back-and-forth"
+
+alt-f = "fullscreen"
+alt-space = ["layout floating tiling", "exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_focus_change"]
+alt-slash = ["layout tiles horizontal vertical", "exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_focus_change"]
+alt-shift-s = "exec-and-forget screencapture -i -c"
+
+# ワークスペースの表示と、そこへの窓の移動
+alt-1 = "workspace 1.Browser"
+alt-2 = "workspace 2.Terminal"
+alt-3 = "workspace 3.Xcode"
+alt-4 = "workspace 4.AI"
+alt-5 = "workspace 5"
+alt-6 = "workspace 6"
+alt-7 = "workspace 7"
+alt-8 = "workspace 8"
+alt-9 = "workspace 9"
+alt-0 = "workspace 10.Music"
+alt-shift-1 = "move-node-to-workspace 1.Browser"
+alt-shift-2 = "move-node-to-workspace 2.Terminal"
+alt-shift-3 = "move-node-to-workspace 3.Xcode"
+alt-shift-4 = "move-node-to-workspace 4.AI"
+alt-shift-5 = "move-node-to-workspace 5"
+alt-shift-6 = "move-node-to-workspace 6"
+alt-shift-7 = "move-node-to-workspace 7"
+alt-shift-8 = "move-node-to-workspace 8"
+alt-shift-9 = "move-node-to-workspace 9"
+alt-shift-0 = "move-node-to-workspace 10.Music"
+
+# モードに入ったことも sketchybar に伝える。AeroSpace はモード変更のイベントを
+# 持たないので、バインド側から押し込むしかない。
+alt-r = ["mode resize", "exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_mode_change MODE=resize"]
+alt-m = ["mode move", "exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_mode_change MODE=move"]
+
+# macOS 既定の cmd-h (隠す) を潰す。隠した窓はタイルから外れて戻し方が分からなくなる。
+cmd-h = []
+cmd-alt-h = []
+
+[mode.resize.binding]
+# yashiki の resize モードは main-ratio と main-count を動かしていたが、
+# tiles には master-stack が無いので素直に幅と高さを変える。
+h = "resize width -50"
+j = "resize height +50"
+k = "resize height -50"
+l = "resize width +50"
+enter = ["mode main", "exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_mode_change MODE=main"]
+esc = ["mode main", "exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_mode_change MODE=main"]
+
+[mode.move.binding]
+# 数字キーだけで窓を送り、送ったら main に戻る
+1 = ["move-node-to-workspace 1.Browser", "mode main"]
+2 = ["move-node-to-workspace 2.Terminal", "mode main"]
+3 = ["move-node-to-workspace 3.Xcode", "mode main"]
+4 = ["move-node-to-workspace 4.AI", "mode main"]
+5 = ["move-node-to-workspace 5", "mode main"]
+6 = ["move-node-to-workspace 6", "mode main"]
+7 = ["move-node-to-workspace 7", "mode main"]
+8 = ["move-node-to-workspace 8", "mode main"]
+9 = ["move-node-to-workspace 9", "mode main"]
+0 = ["move-node-to-workspace 10.Music", "mode main"]
+enter = ["mode main", "exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_mode_change MODE=main"]
+esc = ["mode main", "exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_mode_change MODE=main"]
+
+# ワークスペースを載せるディスプレイ。yashiki の rule-add --output 相当。
+# 10 は Music 専用で、内蔵ディスプレイがあるならそちらに置く。
+[workspace-to-monitor-force-assignment]
+"10.Music" = ['built-in.*', 'main']
+
+# アプリの行き先。yashiki の rule-add --app-id ... tags N に対応する。
+# if.app-id は soft deprecated なので if = 'test %{app-bundle-id} = ...' を使う。
+
+# ブラウザは 1.Browser にまとめ、タイルには混ぜず浮かせる。
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.google.Chrome'
+run = ["layout floating", "move-node-to-workspace 1.Browser"]
+
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = net.imput.helium'
+run = ["layout floating", "move-node-to-workspace 1.Browser"]
+
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.mitchellh.ghostty'
+run = ["move-node-to-workspace 2.Terminal"]
+
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.apple.Terminal'
+run = ["move-node-to-workspace 2.Terminal"]
+
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.apple.dt.Xcode'
+run = ["move-node-to-workspace 3.Xcode"]
+
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.apple.iphonesimulator'
+run = ["move-node-to-workspace 3.Xcode"]
+
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.openai.codex'
+run = ["move-node-to-workspace 4.AI"]
+
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.apple.Music'
+run = ["move-node-to-workspace 10.Music"]
+
+# タイルさせないもの。yashiki では ignore (管理外) にしていたが、AeroSpace に
+# 管理外の概念は無いので floating にする。
+#
+# システム設定はプログラムからのリサイズを拒む。
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.apple.systempreferences'
+run = ["layout floating"]
+
+# Wi-Fi のキャプティブポータルは短命な補助ウィンドウ。
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.apple.CaptiveNetworkAssistant'
+run = ["layout floating"]
+
+# 常駐ユーティリティ。タイルに混ぜると場所を取る。
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = pro.betterdisplay.BetterDisplay'
+run = ["layout floating"]
+
+[[on-window-detected]]
+if = 'test %{app-bundle-id} = com.pointum.hazeover'
+run = ["layout floating"]

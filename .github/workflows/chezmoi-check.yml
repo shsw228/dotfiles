@@ -87,6 +87,7 @@ jobs:
           while IFS= read -r target; do
             printf '%s\n' "$managed" | grep -Fx "$target" >/dev/null
           done <<'EOF_TARGETS'
+          .config/aerospace/aerospace.toml
           .config/git/config
           .local/bin/ssh-sign
           .local/bin/keepresso-settings-export
@@ -113,6 +114,7 @@ jobs:
             --exclude scripts \
             --no-tty
 
+          test -f "$home/.config/aerospace/aerospace.toml"
           test -f "$home/.config/git/config"
           test -x "$home/.local/bin/ssh-sign"
           test -x "$home/.local/bin/keepresso-settings-export"
@@ -126,19 +128,12 @@ jobs:
           test -f "$home/.zshenv"
           test -f "$home/.zshrc"
 
-      - name: Rust bridge checks
-        run: |
-          cd "$GITHUB_WORKSPACE/chezmoi/yashiki-bridge"
-          cargo fmt --check
-          cargo clippy --locked --release -- -D warnings
-
       - name: Shell syntax checks
         run: |
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_00_install-homebrew.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_10_install-homebrew-packages.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_11_herdr-server-handoff.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/dot_claude/modify_settings.json"
-          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_14_build-yashiki-bridge.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_22_apply-keepresso-settings.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
@@ -148,11 +143,7 @@ jobs:
           sh -n "$GITHUB_WORKSPACE/chezmoi/dot_local/bin/executable_ssh-sign"
           sh -n "$GITHUB_WORKSPACE/chezmoi/dot_local/bin/executable_keepresso-settings-export"
           sh -n "$GITHUB_WORKSPACE/chezmoi/dot_local/bin/executable_brew-drift"
-          sh -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_init"
-          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_display_watcher.sh"
-          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_focus_watcher.sh"
-          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_toggle_tag.sh"
-          bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/yashiki/executable_main_count.sh"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/dot_config/sketchybar/plugins/executable_aerospace_bridge.sh"
           bash -n "$GITHUB_WORKSPACE/chezmoi/dot_config/sketchybar/executable_sketchybarrc"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zprofile"
           zsh -n "$GITHUB_WORKSPACE/chezmoi/dot_zshenv"

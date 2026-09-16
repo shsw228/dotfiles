@@ -8,20 +8,19 @@ defaults write NSGlobalDomain NSAutomaticDashSubstitutionEnabled -bool false
 defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false
 defaults write NSGlobalDomain AppleInterfaceStyle -string Dark
 defaults write NSGlobalDomain NSWindowResizeTime -float 0.001
-{{- $wm := dig "wm" "kind" "yashiki" . }}
+{{- $wm := dig "wm" "kind" "aerospace" . }}
 # メニューバーの自動非表示。sketchybar を主バーとして使う構成でだけ有効にする。
-# yashiki 以外を試している間は sketchybar を動かしていないので、非表示にすると
-# 状態表示が何も残らない。メニューバーを出しておく。
+# WM を止めている間は sketchybar も動いていないので、非表示にすると状態表示が
+# 何も残らない。メニューバーを出しておく。
 #
 # defaults write NSGlobalDomain _HIHideMenuBar は使わない。書き込み先は同じだが、
 # 直接書くと即時反映されず、さらに反映された時点で
-# NSApplicationDidChangeScreenParameters が飛ばない。yashiki は可視領域が変わった
-# ことに気づけないので、タイル配置とバーがメニューバーぶんずれたまま残る
-# （これで実際に嵌まり、原因を実装側のバグと誤診した）。
+# NSApplicationDidChangeScreenParameters が飛ばない。WM は可視領域が変わった
+# ことに気づけず、タイル配置とバーがメニューバーぶんずれたまま残る
+# （yashiki で実際に嵌まり、原因を実装側のバグと誤診した）。
 #
-# System Events 経由なら即時に反映され、通知も飛ぶので display_watcher.sh が
-# 拾って gap とバー位置を当て直す。
-{{ if eq $wm "yashiki" -}}
+# System Events 経由なら即時に反映され、通知も飛ぶので WM が拾い直せる。
+{{ if eq $wm "aerospace" -}}
 want="true"
 {{ else -}}
 want="false"
