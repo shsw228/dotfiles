@@ -2,10 +2,13 @@ local sbar = require("sketchybar")
 local colors = require("colors")
 local styles = require("styles")
 
--- yashiki が normal 以外の mode (resize 等) に入っているとき、左に mode 名バッジを
--- 表示し、その下に popup でその mode のキー一覧を出す。
+-- AeroSpace が main 以外の mode (resize / move) に入っているとき、左に mode 名
+-- バッジを表示し、その下に popup でその mode のキー一覧を出す。
+--
+-- AeroSpace は mode 変更のイベントを持たないので、状態は aerospace.toml の
+-- バインド側から --trigger aerospace_mode_change MODE=... で押し込んでいる。
 
-local mode_item = sbar.add("item", "yashiki_mode", {
+local mode_item = sbar.add("item", "aerospace_mode", {
   position = "left",
   icon = { drawing = false, padding_left = 0, padding_right = 0 },
   label = {
@@ -33,21 +36,25 @@ local mode_item = sbar.add("item", "yashiki_mode", {
 -- 各 mode のキー一覧 (1行=1キー説明)。"key 描述" 形式。
 local cheatsheets = {
   resize = {
-    "h        main-ratio 減",
-    "l        main-ratio 増",
-    "j        main-count 減",
-    "k        main-count 増",
-    "↵ / esc  normal へ戻る",
+    "h        幅を縮める",
+    "l        幅を広げる",
+    "j        高さを広げる",
+    "k        高さを縮める",
+    "↵ / esc  main へ戻る",
   },
-  -- 他 mode を declare-mode したらここに追加
+  move = {
+    "1-9, 0   その番号のワークスペースへ窓を送る",
+    "↵ / esc  main へ戻る",
+  },
+  -- mode を足したらここに追加
 }
 
 -- popup 内の行 item を事前生成 (最大行数ぶん)
 local POPUP_ROWS = 8
 local rows = {}
 for i = 1, POPUP_ROWS do
-  rows[i] = sbar.add("item", "popup.yashiki_mode.row_" .. i, {
-    position = "popup.yashiki_mode",
+  rows[i] = sbar.add("item", "popup.aerospace_mode.row_" .. i, {
+    position = "popup.aerospace_mode",
     background = { drawing = false },
     icon = { drawing = false },
     label = {
@@ -77,9 +84,9 @@ local function fill_popup(mode)
   end
 end
 
-mode_item:subscribe("yashiki_mode_change", function(env)
-  local mode = env.MODE or "normal"
-  if mode == "normal" or mode == "" then
+mode_item:subscribe("aerospace_mode_change", function(env)
+  local mode = env.MODE or "main"
+  if mode == "main" or mode == "normal" or mode == "" then
     mode_item:set({
       drawing = false,
       popup = { drawing = false },

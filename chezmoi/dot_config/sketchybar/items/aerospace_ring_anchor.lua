@@ -1,35 +1,35 @@
 local sbar = require("sketchybar")
 local colors = require("colors")
 local styles = require("styles")
-local outputs = require("items.yashiki_outputs")
+local outputs = require("items.aerospace_outputs")
 
--- リング (選択タグを囲む枠) の土台 item。items/init.lua でタグ item より先に
--- require して、タグ列の左端・磨りガラスの上・数字の下のレイヤに置く。
+-- リング (選択ワークスペースを囲む枠) の土台 item。items/init.lua でワークスペース item より先に
+-- require して、ワークスペース列の左端・磨りガラスの上・数字の下のレイヤに置く。
 --
 -- ここで作るのは動かない 1px の土台だけで、リングは icon.background として描く。
 -- 幅は icon.width、位置は icon.background.x_offset で決める。どちらも補間できて
 -- (実測: 途中で新しい目標を与えても現在値から反転なしで繋がる)、item の width を
 -- 触らないのでレイアウトに影響しない。
 --   * リングがどこへ動いても他の item は 1px も動かない
---   * 土台はタグ列より前にあるので、front_app などタグ列より後の item の伸縮に
+--   * 土台はワークスペース列より前にあるので、front_app などワークスペース列より後の item の伸縮に
 --     一切依存しない
 --
 -- label は幅固定の透明な下敷き。item の描画領域は中身の幅から決まり、あとから
--- x_offset を変えても広がらない (クリップされてリングが消える)。タグ列全体を
+-- x_offset を変えても広がらない (クリップされてリングが消える)。ワークスペース列全体を
 -- 常に覆う下敷きを敷いておくことで、リングがどの位置でも描ける。リング本体を
 -- icon 側に持つのは、icon が label より左にあり x_offset が常に正で済むため
 -- (負の x_offset は無視される)。
 --
 -- item の background は「item width ぶんしか描けない」ので使えない (width を
--- 動かすとタグ列ごと押してしまう)。bracket の background は member が 1px だと
+-- 動かすとワークスペース列ごと押してしまう)。bracket の background は member が 1px だと
 -- 描画されない。
 --
--- 動かすロジックは items/yashiki_indicator.lua にある。
+-- 動かすロジックは items/aerospace_indicator.lua にある。
 
 local M = { items = {} }
 
 for _, out in ipairs(outputs) do
-  M.items[out.sb_display] = sbar.add("item", "yashiki.ring.d" .. out.sb_display, {
+  M.items[out.sb_display] = sbar.add("item", "aerospace.ring.d" .. out.sb_display, {
     position = "left",
     associated_display = out.sb_display,
     width = 1,
@@ -50,8 +50,8 @@ for _, out in ipairs(outputs) do
         height = styles.control.height,
       },
     },
-    -- 描画領域をタグ列全体ぶん確保する下敷き。アイコン無しで実測 ~300px、
-    -- 全タグにアイコンが付くと ~470px まで伸びるので余裕を持たせる
+    -- 描画領域をワークスペース列全体ぶん確保する下敷き。アイコン無しで実測 ~300px、
+    -- 全ワークスペースにアイコンが付くと ~470px まで伸びるので余裕を持たせる
     label = {
       drawing = true,
       string = "",

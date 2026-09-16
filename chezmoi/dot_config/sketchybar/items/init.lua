@@ -1,21 +1,20 @@
 local sbar = require("sketchybar")
 
--- yashiki 連動イベント（bridge / wrapper スクリプトから --trigger で発火）
-sbar.add("event", "yashiki_workspace_change")
-sbar.add("event", "yashiki_focus_change")
-sbar.add("event", "yashiki_mode_change")
-sbar.add("event", "yashiki_main_count_change")
+-- AeroSpace 連動イベント（aerospace.toml のコールバックと bridge から --trigger で発火）
+sbar.add("event", "aerospace_workspace_change")
+sbar.add("event", "aerospace_focus_change")
+sbar.add("event", "aerospace_mode_change")
 -- volume.lua の click_script からミュート反映用に内部発火
 sbar.add("event", "volume_state_refresh")
 
 local styles = require("styles")
 
--- 左側の並び (左→右): tag | front_app | yashiki_mode | yashiki_main_count
--- リングの土台はタグ item より先に追加して、数字の下のレイヤに置く
-require("items.yashiki_ring_anchor")
-require("items.yashiki")
+-- 左側の並び (左→右): workspace (一覧 + 現在地の用途名) | front_app | aerospace_mode
+-- リングの土台はワークスペース item より先に追加して、数字の下のレイヤに置く
+require("items.aerospace_ring_anchor")
+require("items.aerospace")
 
--- tag 群とアプリ情報群の面を離すためのダミー item。どちらの bracket にも入れない。
+-- ワークスペース群とアプリ情報群の面を離すためのダミー item。どちらの bracket にも入れない。
 sbar.add("item", "left_group_gap", {
   position = "left",
   width = styles.group_gap,
@@ -27,12 +26,11 @@ sbar.add("item", "left_group_gap", {
 })
 
 require("items.front_app")
-require("items.yashiki_mode")
-require("items.yashiki_main_count")
+require("items.aerospace_mode")
 
 -- スライドするインジケータは左グループの最後に置く。負 padding は後続 item の
 -- advance を増やしてしまうので、後ろに item を置けない (詳細は同ファイル)。
-require("items.yashiki_indicator")
+require("items.aerospace_indicator")
 
 -- 中央配置の並び (左→右): date → notch_spacer → clock → notch_balance
 -- notch_spacer: MBP モデル検出から notch width を割り出し、その幅 + 余白を確保
@@ -51,7 +49,7 @@ require("items.volume")
 require("items.system")
 require("items.media")
 
--- スリープ復帰時に yashiki を retile させるイベントハンドラ (非表示item)
+-- スリープ復帰時に AeroSpace を組み直させるイベントハンドラ (非表示item)
 require("items.wake")
 
 -- システム外観 (Dark/Light) 切り替えで再読み込みするハンドラ (非表示item)
@@ -62,7 +60,7 @@ require("items.theme")
 local displays = require("displays")
 
 sbar.add("bracket", "left_bracket", {
-  "front_app", "yashiki_mode", "yashiki_main_count",
+  "front_app", "aerospace_mode",
 }, {
   blur_radius = styles.bracket.blur_radius,
   background = styles.bracket.background,
@@ -89,7 +87,6 @@ if displays.builtin_index then
   })
 end
 
--- yashiki state stream を購読するブリッジを起動
-sbar.exec(os.getenv("HOME") .. "/.local/bin/yashiki-bridge &")
--- ディスプレイ構成変更時の作り直しは ~/.config/yashiki/display_watcher.sh に集約した。
--- yashiki 側で retile と直列化する必要があり、両方が独立に動くと二重に作り直される。
+-- 起動直後は誰も --trigger を投げていないので、一度だけ自分で state を引く。
+-- AeroSpace には state stream が無く、更新はコールバック契機でしか来ない。
+sbar.exec(os.getenv("HOME") .. "/.config/sketchybar/plugins/aerospace_bridge.sh workspace")

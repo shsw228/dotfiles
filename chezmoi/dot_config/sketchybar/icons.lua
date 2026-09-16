@@ -40,7 +40,7 @@ return {
     cpu = "󰘚",  -- nf-md-chip
     mem = "󰍛",  -- nf-md-memory
   },
-  -- app_id → 表示アイコン。bridge から流れてくる TAG_APPS_N を yashiki.lua がここで引く。
+  -- app_id → 表示アイコン。bridge から流れてくる APPS_<ws> を aerospace.lua がここで引く。
   -- マッチしないものは default を表示。
   app = {
     ["com.google.Chrome"]         = "􀆪",     -- globe

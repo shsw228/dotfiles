@@ -1,36 +1,37 @@
 local sbar = require("sketchybar")
 local colors = require("colors")
 local settings = require("settings")
-local yashiki = require("items.yashiki")
-local outputs = require("items.yashiki_outputs")
-local anchor = require("items.yashiki_ring_anchor")
+local aerospace = require("items.aerospace")
+local outputs = require("items.aerospace_outputs")
+local anchor = require("items.aerospace_ring_anchor")
 
--- 可視タグが1つのとき、そのセルを囲むリングを描き、切り替えで横にスライドさせる。
--- 可視タグが複数のときは1つでは表せないので隠す。
+-- 可視ワークスペースのセルを囲むリングを描き、切り替えで横にスライドさせる。
+-- AeroSpace の可視ワークスペースはディスプレイごとに必ず1つなので、yashiki 時代の
+-- 「複数可視なら隠す」分岐は無い。
 --
--- リングは items/yashiki_ring_anchor.lua の 1px 土台の icon.background として描き、
+-- リングは items/aerospace_ring_anchor.lua の 1px 土台の icon.background として描き、
 -- 位置は icon.background.x_offset、幅は icon.width で動かす。どちらも補間可能で
 -- (実測: 途中で新しい目標を与えても現在値から反転なしで繋がる)、レイアウトを
 -- 通らないため、リングの移動が他の item を動かすことも、他の item の伸縮が
 -- リングを動かすこともない。
 --
 -- 以前は「後ろに item が無い位置に置いて負の padding で動かす」方式だったが、
--- 土台の位置が手前の front_app のラベル幅に依存し、タグ切り替え = 前面アプリの
+-- 土台の位置が手前の front_app のラベル幅に依存し、ワークスペース切り替え = 前面アプリの
 -- 切り替えと同時に土台ごと横へ飛ぶため、あさっての方向へ動いてから戻る動きが
--- 出ていた。土台をタグ列より前に固定したことでこの依存は構造的に消えている。
+-- 出ていた。土台をワークスペース列より前に固定したことでこの依存は構造的に消えている。
 --
--- 動く量は「対象セルの x - 土台の x」。土台はタグ列より前なので、タグのアイコンの
+-- 動く量は「対象セルの x - 土台の x」。土台はワークスペース列より前なので、ワークスペースのアイコンの
 -- 増減 (セル幅が変わる) でも動かない。セル矩形だけをアイコンの署名をキーに
 -- キャッシュし、キャッシュがあれば測らずに色の補間と同じイベントで動き出す。
 
-local ANIM_CURVE = yashiki.anim.curve
-local ANIM_DURATION = yashiki.anim.duration
+local ANIM_CURVE = aerospace.anim.curve
+local ANIM_DURATION = aerospace.anim.duration
 local SKETCHYBAR = settings.paths.sketchybar
 
 -- アニメーションが終わってから測るための待ち (tick は 1/60 秒)
 local SETTLE_DELAY = string.format("%.2f", ANIM_DURATION / 60 + 0.1)
 
--- 対象タグのセルと土台を1回のシェル呼び出しで測る
+-- 対象ワークスペースのセルと土台を1回のシェル呼び出しで測る
 local function query_rects(target_id, ring_id, display_key, callback)
   sbar.exec(
     "{ " .. SKETCHYBAR .. " --query " .. target_id .. "; "
@@ -48,15 +49,20 @@ end
 
 for _, out in ipairs(outputs) do
   local ring = anchor.items[out.sb_display]
-  local ring_id = "yashiki.ring.d" .. out.sb_display
-  local active_key = "OUTPUT_" .. out.yashiki_id .. "_ACTIVE_TAGS"
+  local ring_id = "aerospace.ring.d" .. out.sb_display
+  local active_key = "OUTPUT_" .. out.aerospace_id .. "_ACTIVE"
   local display_key = "display-" .. out.sb_display
 
-  local cells = {}       -- タグ番号 -> { x, w }
-  local cells_sig = nil  -- タグ列の内容の署名。変わればセル幅も変わる
+  -- 表示名 -> item id に使う key。bridge の環境変数名と揃えてある。
+  local key_of = {}
+  for _, space in ipairs(aerospace.spaces) do
+    key_of[space.name] = space.key
+  end
+
+  local cells = {}       -- ワークスペース名 -> { x, w }
   local anchor_x = nil   -- 土台の左端。ディスプレイ構成でしか動かない
   local shown = false    -- リングが出ているか
-  local target_tag = nil -- いま囲んでいるタグ
+  local target_ws = nil  -- いま囲んでいるワークスペース
   -- 測り直しの世代。素早く切り替えると前の測定結果が後から届くので、
   -- 最新でなければ捨てる
   local generation = 0
@@ -82,7 +88,7 @@ for _, out in ipairs(outputs) do
   -- 置いた後、レイアウト確定前の値だった可能性に備えて一度だけ照合する。
   local probe
   probe = function(target, my_generation, attempt)
-    local target_id = "yashiki." .. target .. ".d" .. out.sb_display
+    local target_id = "aerospace." .. (key_of[target] or target) .. ".d" .. out.sb_display
     query_rects(target_id, ring_id, display_key, function(tx, tw, ax)
       if my_generation ~= generation then return end
       if not (tx and tw and ax) then
@@ -110,12 +116,11 @@ for _, out in ipairs(outputs) do
     end)
   end
 
-  ring:subscribe("yashiki_workspace_change", function(env)
-    local active = tonumber(env[active_key]) or 0
-    local target = yashiki.single_active_tag(active)
+  ring:subscribe("aerospace_workspace_change", function(env)
+    local target = env[active_key]
     generation = generation + 1
 
-    if not target then
+    if target == nil or target == "" then
       sbar.animate(ANIM_CURVE, ANIM_DURATION, function()
         ring:set({ icon = { background = { border_color = colors.transparent } } })
       end)
@@ -124,18 +129,10 @@ for _, out in ipairs(outputs) do
       return
     end
 
-    -- セル幅はどのタグにアイコンが出ているかで決まる
-    local sig = {}
-    for _, tag in ipairs(yashiki.tags) do
-      sig[#sig + 1] = env["OUTPUT_" .. out.yashiki_id .. "_TAG_APPS_" .. tag.num] or ""
-    end
-    sig = table.concat(sig, "|")
-    if sig ~= cells_sig then
-      cells_sig = sig
-      cells = {}
-    end
+    -- ピルは番号だけの固定幅になったので、セル幅は中身で変わらない。
+    -- 一度測れば使い回せる (アイコンを出していた頃は署名で破棄していた)。
 
-    target_tag = target
+    target_ws = target
 
     local cell = cells[target]
     if cell and anchor_x then
@@ -151,11 +148,10 @@ for _, out in ipairs(outputs) do
   -- 復帰時も同様。捨てて測り直す。
   ring:subscribe({ "display_change", "system_woke" }, function()
     cells = {}
-    cells_sig = nil
     anchor_x = nil
     generation = generation + 1
-    if target_tag then
-      probe(target_tag, generation, 1)
+    if target_ws then
+      probe(target_ws, generation, 1)
     end
   end)
 end

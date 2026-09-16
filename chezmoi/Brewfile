@@ -1,4 +1,5 @@
 tap "abue-ammar/tinycast"
+tap "nikitabobko/tap"
 tap "shsw228/tap"
 tap "arto-app/tap"
 tap "cameroncooke/axe"
@@ -39,8 +40,7 @@ brew "msitools"
 brew "neovim"
 brew "node"
 brew "pnpm"
-# yashiki-bridge を apply 時にビルドするため (run_onchange_14)。
-# shim を置くだけで toolchain は入らないので、実体は run_onchange_14 が入れる。
+# shim を置くだけで toolchain は入らない。rustup-init は手で走らせる。
 brew "rustup"
 brew "sheldon"
 # ^r のディレクトリ移動 TUI。tap の formula はリリース資産を張るだけ。
@@ -75,15 +75,12 @@ cask "keycastr"
 cask "kid3"
 cask "macshot"
 cask "miniforge"
+# タイル型ウィンドウマネージャ。
+cask "nikitabobko/tap/aerospace"
 cask "obsidian"
 cask "sf-symbols"
 cask "slack"
 cask "thaw"
-# yashiki は fork ビルドを使う。上流ビルドには display イベントも
-# set-outer-gap --output も physical_* も無い。CI が shsw228/yashiki の
-# local/integration からビルドし、shsw228/tap の cask が追従する。
-# 上流版とは binary の張り先 (yashiki) が衝突するので併存させない。
-cask "shsw228/tap/yashiki-fork"
 cask "vial"
 cask "whatcable"
 cask "zed"
