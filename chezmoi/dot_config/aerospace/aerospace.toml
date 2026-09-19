@@ -25,8 +25,7 @@ start-at-login = false
 [gaps]
 inner.horizontal = 10
 inner.vertical = 10
-# gap は画面の物理上端から測るので、メニューバー(30)ぶん足さないと窓が潜る
-outer.top = 42
+outer.top = 12
 outer.bottom = 12
 outer.left = 12
 outer.right = 12
