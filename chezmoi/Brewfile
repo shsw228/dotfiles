@@ -80,7 +80,6 @@ cask "obsidian"
 cask "sf-symbols"
 cask "slack"
 cask "thaw"
-cask "vial"
 cask "whatcable"
 cask "zed"
 
@@ -91,7 +90,6 @@ mas "Bookmarks", id: 1590304377
 mas "Developer", id: 640199958
 mas "Gifski", id: 1351639930
 mas "Keynote", id: 361285480
-mas "RunCat", id: 1429033973
 mas "Swift Playground", id: 1496833156
 mas "uBlacklist for Safari", id: 1547912640
 mas "Userscripts", id: 1463298887
