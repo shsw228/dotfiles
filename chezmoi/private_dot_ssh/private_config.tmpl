@@ -6,6 +6,7 @@ Host *
 Host github.com
     User git
     IdentitiesOnly yes
+    UserKnownHostsFile ~/.ssh/known_hosts ~/.ssh/known_hosts_github
 {{- if $isPersonal }}
     IdentityFile ~/.ssh/github_personal.pub
 {{- else }}
