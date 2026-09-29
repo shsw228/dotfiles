@@ -6,8 +6,18 @@ Host *
 Host github.com
     User git
     IdentitiesOnly yes
+    UserKnownHostsFile ~/.ssh/known_hosts ~/.ssh/known_hosts_github
 {{- if $isPersonal }}
     IdentityFile ~/.ssh/github_personal.pub
 {{- else }}
     IdentityFile ~/.ssh/github_work.pub
+{{- end }}
+{{- if $isPersonal }}
+
+Host homeserver
+    HostName HomeServerMac-mini-M1.local
+    User hume
+    IdentityFile ~/.ssh/homeserver
+    IdentitiesOnly yes
+    AddressFamily inet
 {{- end }}
