@@ -11,3 +11,12 @@ Host github.com
 {{- else }}
     IdentityFile ~/.ssh/github_work.pub
 {{- end }}
+{{- if $isPersonal }}
+
+Host homeserver
+    HostName HomeServerMac-mini-M1.local
+    User hume
+    IdentityFile ~/.ssh/homeserver
+    IdentitiesOnly yes
+    AddressFamily inet
+{{- end }}
