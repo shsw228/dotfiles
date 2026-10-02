@@ -55,74 +55,60 @@ chezmoi status
 - install Homebrew itself if `brew` is not present yet
 - install packages from [`chezmoi/Brewfile`](./chezmoi/Brewfile)
 - apply macOS preferences from `run_onchange_20_apply-macos-defaults.sh.tmpl`
-- configure the Raycast login item
+- configure the Tinycast login item
 - place shell entrypoints such as `.zshenv`, `.zprofile`, and `.zshrc`, with their main contents under `~/.config/zsh/`
-- place app config such as `~/.config/git/config`, `~/.config/nvim`, `~/.config/wezterm`, and `~/.config/ghostty`
+- place app config such as `~/.config/git/config`, `~/.config/nvim`, and `~/.config/ghostty`
 - create `~/.1password-agent.sock` symlink (avoids space-in-path issue with the 1Password socket)
 - register `SSH_AUTH_SOCK` in launchd via `~/Library/LaunchAgents/com.shsw228.ssh-auth-sock.plist` so GUI clients can use the 1Password agent
 - deploy `~/.ssh/config` so `github.com` uses the persona SSH key via the 1Password agent (personal key on personal PCs, work key on work PCs)
+- on work PCs, deploy `~/.config/git/config.personal` and `~/.ssh/config_personal` so repositories under `~/Developer/ghq/github.com/shsw228/` still use the personal identity and key
 
 ## Window Manager Stack
 
-[yashiki](https://github.com/typester/yashiki) tiles the windows; sketchybar draws
-the bar and JankyBorders the window frames. yashiki owns the whole thing.
+[AeroSpace](https://github.com/nikitabobko/AeroSpace) tiles the windows and
+[JankyBorders](https://github.com/FelixKratz/JankyBorders) draws the window frames.
+There is no status bar — the macOS menu bar is used as-is.
 
 ```
-launchd  com.shsw228.yashiki
-  └── yashiki  (runs ~/.config/yashiki/init on startup)
-        ├── borders                          exec --track
-        ├── sketchybar                       exec --track, started last
-        │     └── yashiki_bridge.sh          started from sketchybarrc
-        ├── display_watcher.sh
-        └── focus_watcher.sh
+launchd  com.shsw228.aerospace
+  └── AeroSpace  (reads ~/.config/aerospace/aerospace.toml)
+        └── borders        after-startup-command, exec-and-forget
 ```
 
-Everything ends up in yashiki's process group, so launchd takes the whole stack
-down together, including on a crash, and `KeepAlive` brings it back. This needs
-`AbandonProcessGroup` left at its default in the LaunchAgent. Do not also start
-borders or sketchybar from `brew services`: they have a single-instance guard and
-the two copies collide.
+`run_onchange_30_configure-login-items.sh.tmpl` writes the LaunchAgent and
+bootstraps it. `start-at-login` stays `false` in the config because launchd owns
+the lifecycle; turning both on gives you two instances.
 
-### Who does what
+Do not start `borders` from `brew services` as well. AeroSpace launches it from
+`after-startup-command`, and the two copies collide on its single-instance guard.
 
-| Component | Responsibility |
-|---|---|
-| `yashiki/init` | yashiki configuration, and starting the companions |
-| `yashiki/display_watcher.sh` | Display geometry. Reloads sketchybar and applies the per-display outer gap |
-| `yashiki/focus_watcher.sh` | Focus. Switches the borders colour and restores focus when it is lost |
-| `sketchybar/plugins/yashiki_bridge.sh` | Translates yashiki events into sketchybar events |
+Which WM the login-items script configures comes from `wm.kind` in
+`~/.config/chezmoi/chezmoi.toml` (default `aerospace`). Set `CHEZMOI_WM` and
+re-run `chezmoi init` to try another one.
 
-yashiki has no event hooks — `exec` runs a command immediately — so anything that
-reacts to state has to subscribe, which is why the watchers exist.
+### Workspaces
 
-**The bridge translates only.** It must not write back to yashiki. Anything that
-acts on yashiki belongs in a watcher. Mixing the two once made menu bar apps
-dismiss their own menus: the bridge saw focus go nowhere, called `window-focus`,
-and that activated a different app.
+Workspaces are named, not numbered: `1.Browser`, `2.Terminal`, `3.Editor`,
+`4.AI`, `5`–`9`, `10.Music`. They are declared `persistent-workspaces`, so they
+exist even when empty.
 
-### Per-display gap
+### Keys
 
-Displays reserve different amounts at the top: a notch keeps its strip even with
-the menu bar hidden, an external display reserves nothing. sketchybar's `y_offset`
-is shared by all of them, so `display_watcher.sh` computes the gap per display:
+`alt` is the modifier. `alt-h/j/k/l` moves focus, `alt-shift-h/j/k/l` moves the
+window, `alt-o` switches monitor. Full list in
+[`chezmoi/dot_config/aerospace/aerospace.toml`](./chezmoi/dot_config/aerospace/aerospace.toml).
 
-```
-gap.top = y_offset + bar_height + WINDOW_MARGIN - inset
-```
+## Monitor KVM
 
-and writes the main display's inset to `~/.cache/yashiki/bar_inset`, which
-`bar.lua` reads. Keeping a single source for that value matters — deriving it from
-yashiki in one place and from `NSScreen` in another makes a disagreement
-impossible to trace.
+`~/.local/bin/kvm` hands the USB upstream of a Dell U4025QW to the other input
+over DDC/CI, via `betterdisplaycli`. BetterDisplay must be running.
 
-### yashiki build
+It only toggles. The monitor reports the same value for the KVM code no matter
+which side owns USB, so neither the script nor anything else can address a side
+directly or report where USB currently is.
 
-Hotplugs work on upstream yashiki. Menu bar visibility changes and the per-display
-gap need the fork at [shsw228/yashiki](https://github.com/shsw228/yashiki):
-upstream emits no display event when the menu bar toggles, and its `OutputInfo`
-carries no physical bounds, so the inset cannot be derived. `run_onchange_30`
-prefers `/Applications/Yashiki-fork.app` when it is present and falls back to the
-cask build otherwise.
+Switching away detaches this Mac's keyboard and mouse. The only way back is the
+other machine or the monitor's OSD joystick.
 
 ## Local-Only Configuration
 
@@ -130,6 +116,11 @@ The following files are loaded if present but not managed by chezmoi, so `chezmo
 
 - `~/.config/zsh/local.zsh` — sourced at the end of `.zshrc`
 - `~/.config/git/config.local` — included via `[include]` at the end of git config
+
+`~/.config/git/config.personal` looks similar but **is** managed by chezmoi. It is
+pulled in by an `includeIf` that only fires for repositories under
+`~/Developer/ghq/github.com/shsw228/`, and exists because a work PC otherwise
+commits to personal repositories with the work identity and the work SSH key.
 
 ## Daily Use
 
