@@ -1,16 +1,28 @@
 #!/bin/sh
-# Dell U4025QW の内蔵 KVM (USB アップストリームの割り当て先) を切り替える。
+# Dell U4025QW の内蔵 KVM (USB の接続先) と映像入力を DDC で切り替える。
 #
-# DDC の VCP 0xE7 に 0xFF00 を書くと USB の接続先がもう一方の入力へ移る。
-# このコードはトグルしか受け付けず、読み戻しは常に 0xBC00 で固定なので、
-# 現在どちら側に繋がっているかは DDC からは分からない。絶対指定はできない。
+# USB (VCP 0xE7) は 0xFF00 を書くともう一方へ移るトグルのみ。読み戻しは常に
+# 0xBC00 なので、今どちら側に繋がっているかは分からず、絶対指定もできない。
+# 映像入力 (VCP 0x60) は絶対指定でき、映っていない側の Mac から書いても効く。
 #
-# usage: kvm
+# usage: kvm usb toggle     USB の接続先をトグル
+#        kvm input tb|hdmi  映す入力を切り替える
 set -eu
 
 DISPLAY_NAME='DELL U4025QW'
 VCP_USB_SWITCH=0xE7
 TOGGLE_VALUE=65280          # 0xFF00
+VCP_INPUT=0x60
+INPUT_TB=25                 # 0x19
+INPUT_HDMI=17               # 0x11
+
+# 入力を切り替えた直後などはディスプレイが外れて名前で引けないため、最後に引けた UUID を使う。
+UUID_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/kvm/uuid"
+
+usage() {
+  echo 'usage: kvm usb toggle | kvm input tb|hdmi' >&2
+  exit 64
+}
 
 # Raycast やランチャー経由だと Homebrew が PATH に無いことがある。
 if command -v betterdisplaycli >/dev/null 2>&1; then
@@ -18,20 +30,45 @@ if command -v betterdisplaycli >/dev/null 2>&1; then
 elif [ -x /opt/homebrew/bin/betterdisplaycli ]; then
   BD=/opt/homebrew/bin/betterdisplaycli
 else
-  echo 'kvm: betterdisplaycli が無い (brew install waydabber/betterdisplay/betterdisplaycli)' >&2
+  echo 'kvm: betterdisplaycli が無い (brew install --cask betterdisplay)' >&2
   exit 1
 fi
 
-case "${1:-toggle}" in
-  toggle) ;;
-  *) echo 'usage: kvm' >&2; exit 64 ;;
+case "${1:-}" in
+  usb)
+    [ $# -eq 2 ] && [ "$2" = toggle ] || usage
+    vcp=$VCP_USB_SWITCH value=$TOGGLE_VALUE done_msg='USB をもう一方の入力へ切り替えた'
+    ;;
+  input)
+    [ $# -eq 2 ] || usage
+    case "$2" in
+      tb) value=$INPUT_TB ;;
+      hdmi) value=$INPUT_HDMI ;;
+      *) usage ;;
+    esac
+    vcp=$VCP_INPUT done_msg="映像入力を $2 に切り替えた"
+    ;;
+  *) usage ;;
 esac
 
-if ! err="$("$BD" set -name="$DISPLAY_NAME" -ddc -vcp="$VCP_USB_SWITCH" -value="$TOGGLE_VALUE" 2>&1)"; then
+uuid="$("$BD" get -name="$DISPLAY_NAME" -identifiers 2>/dev/null |
+  sed -n 's/^ *"UUID" : "\(.*\)",*$/\1/p')" || true
+if [ -n "$uuid" ]; then
+  mkdir -p "${UUID_CACHE%/*}"
+  printf '%s\n' "$uuid" >"$UUID_CACHE"
+elif [ -r "$UUID_CACHE" ]; then
+  uuid="$(cat "$UUID_CACHE")"
+else
+  echo "kvm: '$DISPLAY_NAME' が見つからない。BetterDisplay が起動しているか確認する" >&2
+  exit 1
+fi
+
+# betterdisplaycli は失敗時に "Failed." を出す。
+if ! err="$("$BD" set -UUID="$uuid" -ddc -vcp="$vcp" -value="$value" 2>&1)" || [ "$err" = 'Failed.' ]; then
   echo 'kvm: DDC の書き込みに失敗した' >&2
   echo "     BetterDisplay が起動しているか、表示名が '$DISPLAY_NAME' か確認する" >&2
   [ -n "$err" ] && printf '     %s\n' "$err" >&2
   exit 1
 fi
 
-echo 'USB をもう一方の入力へ切り替えた'
+echo "$done_msg"
