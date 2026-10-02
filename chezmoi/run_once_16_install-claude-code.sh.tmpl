@@ -17,4 +17,5 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 0
 fi
 
-curl -fsSL https://claude.ai/install.sh | bash
+script="$(curl -fsSL https://claude.ai/install.sh)"
+bash -c "$script"

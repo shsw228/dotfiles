@@ -1,4 +1,7 @@
 #!/bin/sh
+# Brewfile.personal は実行時に読むだけなので、ハッシュを埋めないと編集しても再実行されない。
+{{ $personal := joinPath .chezmoi.sourceDir "Brewfile.personal" -}}
+{{ if stat $personal }}# Brewfile.personal hash: {{ include $personal | sha256sum }}{{ end }}
 set -eu
 
 if command -v brew >/dev/null 2>&1; then

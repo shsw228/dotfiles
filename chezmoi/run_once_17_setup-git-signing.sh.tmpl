@@ -54,7 +54,7 @@ for f in "$tmp"/id_ecdsa_sk_rk*; do
   break
 done
 
-if [ -z "$src" ]; then
+if [ -z "$src" ] || [ ! -f "$src.pub" ]; then
   printf '\033[31m✖\033[0m Secure Enclave から鍵ハンドルを取り出せませんでした\n' >&2
   exit 1
 fi

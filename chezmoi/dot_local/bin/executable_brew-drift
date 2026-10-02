@@ -31,7 +31,7 @@ cat "$source_dir/Brewfile" >"$merged"
 
 # 個人 PC では Brewfile.personal も宣言に含める。忘れると personal 側が
 # 「宣言外」に見え、消してはいけないものを消す判断に繋がる。
-is_personal="$(chezmoi data 2>/dev/null | jq -r '.profile.is_personal_pc // true' 2>/dev/null)" || is_personal="true"
+is_personal="$(chezmoi data 2>/dev/null | jq -r '.profile.is_personal_pc | if . == null then true else . end' 2>/dev/null)" || is_personal="true"
 if [ "$is_personal" = "true" ] && [ -f "$source_dir/Brewfile.personal" ]; then
   cat "$source_dir/Brewfile.personal" >>"$merged"
 fi
@@ -59,8 +59,8 @@ brew list --cask --full-name 2>/dev/null | sort -u >"$work/have_cask"
 undeclared() {
   while IFS= read -r n; do
     [ -z "$n" ] && continue
-    grep -qx "$n" "$2" && continue
-    grep -qx "${n##*/}" "$2" && continue
+    grep -Fqx "$n" "$2" && continue
+    grep -Fqx "${n##*/}" "$2" && continue
     printf '%s\n' "$n"
   done <"$1"
 }
@@ -87,7 +87,7 @@ report "宣言外の cask" "$work/extra_cask"
 # 中身が残る不整合になるため、ここで気づけるようにしておく。
 : >"$work/extra_tap"
 brew tap | while IFS= read -r t; do
-  grep -qx "$t" "$work/decl_tap" && continue
+  grep -Fqx "$t" "$work/decl_tap" && continue
   n=$(brew list --formula --full-name 2>/dev/null | grep -c "^$t/" || true)
   m=$(brew list --cask --full-name 2>/dev/null | grep -c "^$t/" || true)
   if [ "$n" = "0" ] && [ "$m" = "0" ]; then
