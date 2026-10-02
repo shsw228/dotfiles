@@ -1,0 +1,9 @@
+# 会社用 PC から個人リポジトリを触るとき用。~/.config/git/config.personal が
+# core.sshCommand でここを指す。~/.ssh/config は github.com に会社鍵を固定するので、
+# -o で個別に上書きせず、必要な設定を揃えた別ファイルごと差し替える。
+Host github.com
+    User git
+    IdentityAgent ~/.1password-agent.sock
+    IdentitiesOnly yes
+    IdentityFile ~/.ssh/github_personal.pub
+    UserKnownHostsFile ~/.ssh/known_hosts ~/.ssh/known_hosts_github
