@@ -42,7 +42,7 @@ managed='{
   "language": "Japanese",
   "effortLevel": "high",
   "tui": "fullscreen",
-  "theme": "dark-ansi",
+  "theme": "auto",
   "editorMode": "normal",
   "verbose": true,
   "preferredNotifChannel": "ghostty",
