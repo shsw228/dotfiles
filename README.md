@@ -100,15 +100,23 @@ window, `alt-o` switches monitor. Full list in
 
 ## Monitor KVM
 
-`~/.local/bin/kvm` hands the USB upstream of a Dell U4025QW to the other input
-over DDC/CI, via `betterdisplaycli`. BetterDisplay must be running.
+`~/.local/bin/kvm` drives a Dell U4025QW over DDC/CI, via `betterdisplaycli`.
+BetterDisplay must be running.
 
-It only toggles. The monitor reports the same value for the KVM code no matter
+```sh
+kvm usb toggle    # hand USB to the other input (toggle)
+kvm input tb      # show the Thunderbolt input
+kvm input hdmi    # show the HDMI input
+```
+
+USB only toggles. The monitor reports the same value for the KVM code no matter
 which side owns USB, so neither the script nor anything else can address a side
-directly or report where USB currently is.
+directly or report where USB currently is. Handing USB away detaches this Mac's
+keyboard and mouse; the only way back is the other machine or the OSD joystick.
 
-Switching away detaches this Mac's keyboard and mouse. The only way back is the
-other machine or the monitor's OSD joystick.
+The video input can be set directly, and the write works even from the Mac that
+is not on screen. The display's UUID is cached in `~/.cache/kvm/uuid` because the
+display cannot be looked up by name while it is detached.
 
 ## Local-Only Configuration
 
