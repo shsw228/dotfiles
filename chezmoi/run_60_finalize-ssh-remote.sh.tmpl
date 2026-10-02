@@ -3,12 +3,14 @@
 # dotfiles の origin を SSH へ張り替え、以降の pull/push を agent 経由にする。
 # 既に SSH origin なら即終了（べき等）。CI / 非TTY では待機しない。
 set -eu
+{{ template "step.sh" "dotfiles の origin を SSH に切り替え" }}
 
 [ "${CHEZMOI_CI:-0}" = "1" ] && exit 0
-[ -t 1 ] || exit 0
+[ "$_tty" = "1" ] || exit 0
 
 repo="$(dirname "{{ .chezmoi.sourceDir }}")"
 
+step "dotfiles の origin の確認"
 # 既に SSH origin なら何もしない
 case "$(git -C "$repo" remote get-url origin 2>/dev/null || true)" in
   git@github.com:* | ssh://git@github.com/*) exit 0 ;;
@@ -16,6 +18,7 @@ esac
 
 sock="$HOME/.1password-agent.sock"
 
+step_raw "1Password SSH エージェントの待機"
 # エージェントがまだ使えなければ、有効化を促してスピナーで待つ
 if ! env SSH_AUTH_SOCK="$sock" ssh-add -l >/dev/null 2>&1; then
   printf '\n1Password にサインインし、設定 → 開発者 → 「SSH エージェントを使用」を有効化してください\n'
@@ -38,5 +41,6 @@ if ! env SSH_AUTH_SOCK="$sock" ssh-add -l >/dev/null 2>&1; then
   printf '\r\033[32m✔\033[0m SSH エージェントを検出しました        \n'
 fi
 
+step "origin を SSH に張り替え"
 git -C "$repo" remote set-url origin git@github.com:shsw228/dotfiles.git
-echo "dotfiles の origin を SSH に切り替えました"
+say "dotfiles の origin を SSH に切り替えました"

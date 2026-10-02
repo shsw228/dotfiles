@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
+{{ template "step.sh" "macOS の defaults 設定" }}
 
+step "NSGlobalDomain の defaults"
 defaults write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
 defaults write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false
 defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
@@ -12,6 +14,7 @@ if [ "$(osascript -e 'tell application "System Events" to tell dock preferences 
   osascript -e 'tell application "System Events" to tell dock preferences to set autohide menu bar to false' >/dev/null 2>&1 || true
 fi
 
+step "Finder の defaults"
 defaults write com.apple.finder AppleShowAllExtensions -bool true
 defaults write com.apple.finder AppleShowAllFiles -bool true
 defaults write com.apple.finder FXDefaultSearchScope -string SCcf
@@ -19,6 +22,7 @@ defaults write com.apple.finder ShowPathbar -bool true
 defaults write com.apple.finder FXPreferredViewStyle -string Nlsv
 defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false
 
+step "Dock の defaults"
 defaults write com.apple.dock autohide -bool true
 defaults write com.apple.dock expose-group-apps -bool true
 defaults write com.apple.dock show-process-indicators -bool true
@@ -32,6 +36,7 @@ defaults write com.apple.dock persistent-apps -array
 defaults write com.apple.dock wvous-br-corner -int 0
 defaults write com.apple.dock wvous-br-modifier -int 0
 
+step "Spaces / スクリーンショットの defaults"
 defaults write com.apple.spaces spans-displays -bool false
 
 defaults write com.apple.screencapture target -string clipboard

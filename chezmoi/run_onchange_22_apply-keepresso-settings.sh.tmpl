@@ -14,6 +14,7 @@
 # リポジトリに入れるフックは中身を把握しているものだけにする。
 # keepresso-settings.json hash: {{ include "keepresso-settings.json" | sha256sum }}
 set -eu
+{{ template "step.sh" "Keepresso の設定反映" }}
 
 if [ "${CHEZMOI_CI:-0}" = "1" ]; then
   exit 0
@@ -24,7 +25,7 @@ if [ ! -d /Applications/Keepresso.app ]; then
 fi
 
 if ! command -v jq >/dev/null 2>&1; then
-  echo "jq が見つからないため Keepresso 設定の適用をスキップします" >&2
+  say "jq が見つからないため Keepresso 設定の適用をスキップします"
   exit 0
 fi
 
@@ -33,13 +34,15 @@ key="sh.gyorgy.keepresso.settings.v1"
 # plutil のキーパスは . を区切りに解釈するのでエスケープした別名が要る。
 key_path='sh\.gyorgy\.keepresso\.settings\.v1'
 
+step "設定 JSON の生成"
 want="$(mktemp)"
-trap 'rm -f "$want"' EXIT
+cleanup() { rm -f "$want"; }
 
 jq -cS '.settings' >"$want" <<'EOF_KEEPRESSO'
 {{ include "keepresso-settings.json" }}
 EOF_KEEPRESSO
 
+step "現在の設定との比較"
 # 既に同じ内容ならアプリを落とさずに終わる。run_onchange はハッシュが変わった
 # ときだけ走るが、新規マシンの初回 apply でも走るので無駄な再起動を避ける。
 current="$(defaults export "$domain" - 2>/dev/null \
@@ -51,6 +54,7 @@ if [ -n "$current" ] && [ "$current" = "$(cat "$want")" ]; then
   exit 0
 fi
 
+step "Keepresso の終了"
 # 終了は AppleScript の quit ではなく SIGTERM を送る。
 # セッションが稼働中か蓋閉じモードのとき、Keepresso は終了確認モーダル
 # (QuitSleepModal) を出して applicationShouldTerminate を保留する。トリガーを
@@ -78,10 +82,11 @@ fi
 # 生きたまま書くと、アプリが次に設定を保存した時点で丸ごと巻き戻る。
 # 落とせなかったときは書かずに諦める。黙って上書きされるより良い。
 if pgrep -x Keepresso >/dev/null 2>&1; then
-  echo "Keepresso を終了できないため設定の適用を見送ります" >&2
+  say "Keepresso を終了できないため設定の適用を見送ります"
   exit 0
 fi
 
+step "UserDefaults への書き込み"
 defaults write "$domain" "$key" -data "$(xxd -p "$want" | tr -d '\n')"
 
 if [ "$was_running" = "1" ]; then

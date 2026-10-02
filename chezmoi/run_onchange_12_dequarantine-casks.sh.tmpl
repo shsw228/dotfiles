@@ -13,6 +13,7 @@
 # テンプレート描画ごと落ちるため、存在確認してから呼ぶ。
 {{ if lookPath "brew" }}# Installed casks: {{ output "brew" "list" "--cask" "--versions" | sha256sum }}{{ end }}
 set -eu
+{{ template "step.sh" "cask アプリの検疫属性の除去" }}
 
 if [ "${CHEZMOI_CI:-0}" = "1" ]; then
   exit 0
@@ -29,13 +30,15 @@ else
 fi
 
 if ! command -v jq >/dev/null 2>&1; then
-  echo "jq が見つからないため cask の de-quarantine をスキップします" >&2
+  say "jq が見つからないため cask の de-quarantine をスキップします"
   exit 0
 fi
 
+step "インストール済み cask の取得"
 casks="$("$brew_cmd" list --cask 2>/dev/null || true)"
 [ -z "$casks" ] && exit 0
 
+step "検疫属性の除去"
 # 各 cask の .app 成果物を列挙し、配置先で検疫属性を除去する。
 # 配置先は既定の /Applications と、ユーザー領域の ~/Applications を対象にする。
 # shellcheck disable=SC2086
