@@ -9,6 +9,7 @@
 #
 # 失敗しても server stop はしない。ペイン内のプロセスが落ちるため、そこは人の判断に回す。
 set -eu
+{{ template "step.sh" "herdr サーバの更新確認" }}
 
 if [ "${CHEZMOI_CI:-0}" = "1" ]; then
   exit 0
@@ -20,18 +21,19 @@ fi
 
 # 読み取りだけのコマンドで様子を見る。サーバ未起動なら server_not_running が返るので
 # 何もしない。
+step "herdr サーバの protocol 確認"
 probe="$(herdr workspace list 2>&1 || true)"
 case "$probe" in
   *protocol_mismatch*) ;;
   *) exit 0 ;;
 esac
 
-echo "herdr: サーバが旧 protocol のままです。live-handoff で差し替えます。" >&2
+say "herdr: サーバが旧 protocol のままです。live-handoff で差し替えます。"
 if herdr server live-handoff >/dev/null 2>&1; then
-  echo "herdr: live-handoff 完了。" >&2
+  say "herdr: live-handoff 完了。"
 else
-  echo "herdr: live-handoff に失敗しました。ペインを落とさないため自動では止めません。" >&2
-  echo "       herdr の外 (open -na Ghostty --env HERDR_AUTOSTART=0) で次を実行してください。" >&2
-  echo "       ペイン内のプロセスは落ちます。" >&2
-  echo '         HERDR_SOCKET_PATH="$HOME/.config/herdr/herdr.sock" herdr server stop' >&2
+  say "herdr: live-handoff に失敗しました。ペインを落とさないため自動では止めません。"
+  say "       herdr の外 (open -na Ghostty --env HERDR_AUTOSTART=0) で次を実行してください。"
+  say "       ペイン内のプロセスは落ちます。"
+  say '         HERDR_SOCKET_PATH="$HOME/.config/herdr/herdr.sock" herdr server stop'
 fi

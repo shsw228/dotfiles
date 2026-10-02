@@ -1,9 +1,12 @@
 #!/bin/sh
 set -eu
+{{ template "step.sh" "Homebrew 本体のインストール" }}
 
 if command -v brew >/dev/null 2>&1 || [ -x /opt/homebrew/bin/brew ] || [ -x /usr/local/bin/brew ]; then
   exit 0
 fi
 
+step "Homebrew インストーラの取得"
 script="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+step_raw "Homebrew インストーラの実行"
 /bin/bash -c "$script"

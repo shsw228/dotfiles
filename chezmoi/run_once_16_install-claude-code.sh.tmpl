@@ -3,6 +3,7 @@
 # Homebrew cask ではなくネイティブ管理とし、以降の更新は claude 自身の
 # 自動アップデート（claude update）に任せる。
 set -eu
+{{ template "step.sh" "Claude Code のインストール" }}
 
 if [ "${CHEZMOI_CI:-0}" = "1" ]; then
   exit 0
@@ -13,9 +14,11 @@ if [ -x "${HOME}/.local/bin/claude" ]; then
 fi
 
 if ! command -v curl >/dev/null 2>&1; then
-  echo "curl が見つからないため Claude Code の導入をスキップします" >&2
+  say "curl が見つからないため Claude Code の導入をスキップします"
   exit 0
 fi
 
+step "Claude Code インストーラの取得"
 script="$(curl -fsSL https://claude.ai/install.sh)"
-bash -c "$script"
+step "Claude Code インストーラの実行"
+progress bash -c "$script"
