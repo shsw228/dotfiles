@@ -27,3 +27,9 @@
 # 署名を1回通してから config.local 側で有効化する。
 [include]
 	path = ~/.config/git/config.local
+{{ if not (dig "profile" "is_personal_pc" false .) }}
+# 会社用 PC では identity も github.com の鍵も会社用になる。個人リポジトリだけ
+# 個人用に戻す。上の [user] を上書きするため include より後に置く。
+[includeIf "gitdir:~/Developer/ghq/github.com/shsw228/"]
+	path = ~/.config/git/config.personal
+{{- end }}
