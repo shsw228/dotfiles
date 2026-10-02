@@ -48,6 +48,7 @@ brew "starship"
 # nvim-treesitter (main ブランチ) がパーサのビルドに `tree-sitter build` を呼ぶため。
 # neovim が依存する tree-sitter formula はランタイムライブラリのみで CLI を含まない。
 brew "tree-sitter-cli"
+brew "uv"
 brew "xcodegen"
 brew "xcodes", link: false
 brew "yammerjp/tap/pdef"
