@@ -1,0 +1,37 @@
+#!/bin/sh
+# Dell U4025QW の内蔵 KVM (USB アップストリームの割り当て先) を切り替える。
+#
+# DDC の VCP 0xE7 に 0xFF00 を書くと USB の接続先がもう一方の入力へ移る。
+# このコードはトグルしか受け付けず、読み戻しは常に 0xBC00 で固定なので、
+# 現在どちら側に繋がっているかは DDC からは分からない。絶対指定はできない。
+#
+# usage: kvm
+set -eu
+
+DISPLAY_NAME='DELL U4025QW'
+VCP_USB_SWITCH=0xE7
+TOGGLE_VALUE=65280          # 0xFF00
+
+# Raycast やランチャー経由だと Homebrew が PATH に無いことがある。
+if command -v betterdisplaycli >/dev/null 2>&1; then
+  BD=betterdisplaycli
+elif [ -x /opt/homebrew/bin/betterdisplaycli ]; then
+  BD=/opt/homebrew/bin/betterdisplaycli
+else
+  echo 'kvm: betterdisplaycli が無い (brew install waydabber/betterdisplay/betterdisplaycli)' >&2
+  exit 1
+fi
+
+case "${1:-toggle}" in
+  toggle) ;;
+  *) echo 'usage: kvm' >&2; exit 64 ;;
+esac
+
+if ! err="$("$BD" set -name="$DISPLAY_NAME" -ddc -vcp="$VCP_USB_SWITCH" -value="$TOGGLE_VALUE" 2>&1)"; then
+  echo 'kvm: DDC の書き込みに失敗した' >&2
+  echo "     BetterDisplay が起動しているか、表示名が '$DISPLAY_NAME' か確認する" >&2
+  [ -n "$err" ] && printf '     %s\n' "$err" >&2
+  exit 1
+fi
+
+echo 'USB をもう一方の入力へ切り替えた'
