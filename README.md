@@ -11,7 +11,7 @@ macOS dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 The repo is public, so the initial clone needs no SSH key or 1Password. Clone over HTTPS; `chezmoi apply` then installs Homebrew, the Brewfile (including 1Password), and all config.
 
 ```sh
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
+sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply \
   --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
   https://github.com/shsw228/dotfiles.git
 ```
@@ -27,7 +27,7 @@ Non-interactive form for work machines:
 CHEZMOI_IS_PERSONAL_PC=false \
 GIT_NAME="Your Name" \
 GIT_EMAIL="you@company.com" \
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply \
+sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply \
   --source="$HOME/Developer/ghq/github.com/shsw228/dotfiles" \
   https://github.com/shsw228/dotfiles.git
 ```
