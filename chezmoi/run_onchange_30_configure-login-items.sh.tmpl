@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
+{{ template "step.sh" "ログイン項目と常駐アプリの設定" }}
 
+step "ログイン項目の設定"
 osascript <<'APPLESCRIPT' >/dev/null 2>&1 || true
 tell application "System Events"
   if exists login item "Raycast" then
@@ -18,6 +20,7 @@ tell application "System Events"
 end tell
 APPLESCRIPT
 
+step "旧 yashiki-autostart の削除"
 old_plist="$HOME/Library/LaunchAgents/com.shsw228.yashiki-autostart.plist"
 if [ -f "$old_plist" ]; then
   launchctl bootout "gui/$(id -u)/com.shsw228.yashiki-autostart" 2>/dev/null || true
@@ -34,6 +37,7 @@ else
   brew_cmd=""
 fi
 
+step "brew services の停止"
 if [ -n "$brew_cmd" ]; then
   for svc in borders; do
     if "$brew_cmd" services list 2>/dev/null | awk -v s="$svc" '$1 == s {print $2}' | grep -qx "started"; then
@@ -56,10 +60,11 @@ launchctl bootout "gui/$(id -u)/com.shsw228.yashiki" 2>/dev/null || true
 rm -f "$HOME/Library/LaunchAgents/com.shsw228.yashiki.plist"
 
 if [ ! -x "$app" ]; then
-  echo "aerospace: $app が見つかりません。" >&2
-  echo "           brew install --cask nikitabobko/tap/aerospace を確認してください。" >&2
+  say "aerospace: $app が見つかりません。"
+  say "           brew install --cask nikitabobko/tap/aerospace を確認してください。"
 fi
 
+step "AeroSpace の LaunchAgent の配置"
 if [ -n "${app:-}" ] && [ -x "$app" ]; then
   mkdir -p "$HOME/Library/LaunchAgents"
   cat >"$plist" <<PLIST

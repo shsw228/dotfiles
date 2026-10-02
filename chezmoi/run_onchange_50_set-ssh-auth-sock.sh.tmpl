@@ -3,6 +3,7 @@
 # SSH_AUTH_SOCK を launchd の env に登録する。
 # 即時反映と再起動後の永続化のため、LaunchAgent plist も配置する。
 set -eu
+{{ template "step.sh" "SSH_AUTH_SOCK の launchd 登録" }}
 
 if [ "${CHEZMOI_CI:-0}" = "1" ]; then
   exit 0
@@ -12,6 +13,7 @@ label="com.shsw228.ssh-auth-sock"
 plist="$HOME/Library/LaunchAgents/${label}.plist"
 sock="$HOME/.1password-agent.sock"
 
+step "LaunchAgent plist の配置"
 mkdir -p "$HOME/Library/LaunchAgents"
 
 cat > "$plist" <<EOF
@@ -34,6 +36,8 @@ cat > "$plist" <<EOF
 </plist>
 EOF
 
+step "LaunchAgent の読み込み"
 launchctl unload "$plist" 2>/dev/null || true
 launchctl load -w "$plist"
+step "SSH_AUTH_SOCK の設定"
 launchctl setenv SSH_AUTH_SOCK "$sock"

@@ -10,31 +10,31 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 # --- Extract fields from JSON -------------------------------------------------
-cwd=$(echo "$input" | jq -r '.cwd // .workspace.current_dir // empty')
+cwd=$(printf '%s' "$input" | jq -r '.cwd // .workspace.current_dir // empty')
 [ -n "$cwd" ] || cwd="${PWD:-.}"
 # Home-abbreviated full path (e.g. ~/Developer/.../Life)
 case "$cwd" in
-  "$HOME"*) dir="~${cwd#$HOME}" ;;
+  "$HOME"|"$HOME"/*) dir="~${cwd#$HOME}" ;;
   *) dir="$cwd" ;;
 esac
 
-model=$(echo "$input" | jq -r '.model.display_name // empty')
-style=$(echo "$input" | jq -r '.output_style.name // empty')
-remaining=$(echo "$input" | jq -r '.context_window.remaining_percentage // empty')
-added=$(echo "$input" | jq -r '.cost.total_lines_added // empty')
-removed=$(echo "$input" | jq -r '.cost.total_lines_removed // empty')
+model=$(printf '%s' "$input" | jq -r '.model.display_name // empty')
+style=$(printf '%s' "$input" | jq -r '.output_style.name // empty')
+remaining=$(printf '%s' "$input" | jq -r '.context_window.remaining_percentage // empty')
+added=$(printf '%s' "$input" | jq -r '.cost.total_lines_added // empty')
+removed=$(printf '%s' "$input" | jq -r '.cost.total_lines_removed // empty')
 
 # Rate limits (Pro/Max only; may be absent until first API response)
-fh_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
-fh_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
-sd_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
-sd_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
+fh_pct=$(printf '%s' "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
+fh_reset=$(printf '%s' "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
+sd_pct=$(printf '%s' "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+sd_reset=$(printf '%s' "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
 
 # --- Git info (branch name only) ----------------------------------------------
 branch=""
 if git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1; then
-  GIT="git -C $cwd -c core.fsmonitor=false"
-  branch=$($GIT symbolic-ref --short HEAD 2>/dev/null || $GIT rev-parse --short HEAD 2>/dev/null)
+  g() { git -C "$cwd" -c core.fsmonitor=false "$@"; }
+  branch=$(g symbolic-ref --short HEAD 2>/dev/null || g rev-parse --short HEAD 2>/dev/null)
 fi
 
 # Label color (bold, not gray) applied to every "label:" prefix.
