@@ -1,6 +1,6 @@
 config-version = 2
 
-persistent-workspaces = ["1.Browser", "2.Terminal", "3.Editor", "4.AI", "5", "6", "7", "8", "9", "10.Music"]
+persistent-workspaces = ["1.Browser", "2.Terminal", "3.Editor", "4.AI", "5", "6", "7", "8", "9", "10.Pinned"]
 
 auto-reload-config = true
 
@@ -59,7 +59,7 @@ alt-6 = "workspace 6"
 alt-7 = "workspace 7"
 alt-8 = "workspace 8"
 alt-9 = "workspace 9"
-alt-0 = "workspace 10.Music"
+alt-0 = "workspace 10.Pinned"
 alt-shift-1 = "move-node-to-workspace 1.Browser"
 alt-shift-2 = "move-node-to-workspace 2.Terminal"
 alt-shift-3 = "move-node-to-workspace 3.Editor"
@@ -69,7 +69,7 @@ alt-shift-6 = "move-node-to-workspace 6"
 alt-shift-7 = "move-node-to-workspace 7"
 alt-shift-8 = "move-node-to-workspace 8"
 alt-shift-9 = "move-node-to-workspace 9"
-alt-shift-0 = "move-node-to-workspace 10.Music"
+alt-shift-0 = "move-node-to-workspace 10.Pinned"
 
 alt-r = "mode resize"
 alt-m = "mode move"
@@ -95,12 +95,24 @@ esc = "mode main"
 7 = ["move-node-to-workspace 7", "mode main"]
 8 = ["move-node-to-workspace 8", "mode main"]
 9 = ["move-node-to-workspace 9", "mode main"]
-0 = ["move-node-to-workspace 10.Music", "mode main"]
+0 = ["move-node-to-workspace 10.Pinned", "mode main"]
 enter = "mode main"
 esc = "mode main"
 
 [workspace-to-monitor-force-assignment]
-"10.Music" = ['built-in.*', 'main']
+# 外部モニターがあれば名前付き 9 枚はすべてそちらへ送り、Built-in は 10.Pinned だけに使う。
+# 指定が無いワークスペースは main ディスプレイ (通常は Built-in) に寄ってしまうため全部書く。
+# 先頭パターンは built-in を含まない名前のモニターにだけ当たる。外部が無いときは main に落ちる。
+"1.Browser" = ['^(?!.*built-in).*$', 'main']
+"2.Terminal" = ['^(?!.*built-in).*$', 'main']
+"3.Editor" = ['^(?!.*built-in).*$', 'main']
+"4.AI" = ['^(?!.*built-in).*$', 'main']
+"5" = ['^(?!.*built-in).*$', 'main']
+"6" = ['^(?!.*built-in).*$', 'main']
+"7" = ['^(?!.*built-in).*$', 'main']
+"8" = ['^(?!.*built-in).*$', 'main']
+"9" = ['^(?!.*built-in).*$', 'main']
+"10.Pinned" = ['built-in.*', 'main']
 
 [[on-window-detected]]
 if = 'test %{app-bundle-id} = com.google.Chrome'
@@ -136,7 +148,7 @@ run = ["move-node-to-workspace 4.AI"]
 
 [[on-window-detected]]
 if = 'test %{app-bundle-id} = com.apple.Music'
-run = ["move-node-to-workspace 10.Music"]
+run = ["move-node-to-workspace 10.Pinned"]
 
 [[on-window-detected]]
 if = 'test %{app-bundle-id} = com.apple.systempreferences'
