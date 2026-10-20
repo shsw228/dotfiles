@@ -89,8 +89,14 @@ re-run `chezmoi init` to try another one.
 ### Workspaces
 
 Workspaces are named, not numbered: `1.Browser`, `2.Terminal`, `3.Editor`,
-`4.AI`, `5`–`9`, `10.Music`. They are declared `persistent-workspaces`, so they
+`4.AI`, `5`–`9`, `10.Pinned`. They are declared `persistent-workspaces`, so they
 exist even when empty.
+
+Every workspace is pinned to a monitor in `workspace-to-monitor-force-assignment`.
+`1.Browser`–`9` go to the external monitor and `10.Pinned` stays on the built-in
+display, so the laptop screen keeps one always-visible workspace. Without an
+assignment a workspace drifts to the main display, which is why all ten are
+listed. With no external monitor attached every pattern falls back to `main`.
 
 ### Keys
 
