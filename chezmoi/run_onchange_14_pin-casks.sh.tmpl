@@ -1,0 +1,24 @@
+#!/bin/sh
+# brew upgrade で更新すると再起動までクラッシュするアプリを upgrade 対象から外す。
+set -eu
+{{ template "step.sh" "cask の pin" }}
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+if command -v brew >/dev/null 2>&1; then
+  brew_cmd="$(command -v brew)"
+elif [ -x /opt/homebrew/bin/brew ]; then
+  brew_cmd="/opt/homebrew/bin/brew"
+elif [ -x /usr/local/bin/brew ]; then
+  brew_cmd="/usr/local/bin/brew"
+else
+  exit 0
+fi
+
+for cask in google-chrome discord; do
+  "$brew_cmd" list --cask "$cask" >/dev/null 2>&1 || continue
+  step "$cask"
+  "$brew_cmd" pin --cask "$cask"
+done
