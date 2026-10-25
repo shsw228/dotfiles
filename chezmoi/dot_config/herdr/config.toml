@@ -15,3 +15,6 @@ switch_ascii_input_source_in_prefix = true
 [theme]
 name = "catppuccin"
 auto_switch = false
+
+[theme.custom]
+sidebar_bg = "#181825"
