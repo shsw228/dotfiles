@@ -1,6 +1,7 @@
 theme = "Xcode Dark hc"
 background = #000000
-background-opacity = 0.0
+background-opacity = 0.35
+background-opacity-cells = true
 background-blur = macos-glass-regular
 unfocused-split-opacity = 0.6
 font-family = "Moralerspace Neon"
