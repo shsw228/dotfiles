@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VAULT="${LIFE_VAULT:-$HOME/Developer/ghq/github.com/shsw228/Life}"
+RG="$(type -P rg || true)"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+
+usage() {
+  cat <<'EOF'
+usage: life-search <command> [args]
+
+  search QUERY [OPT]    ハイブリッド検索 (FTS5 trigram + Model2Vec)。自然文可。life-index search -h 参照
+  build [--full]        検索インデックスを差分更新 (search 時にも自動で差分更新される)
+  stats                 インデックスの状態
+  daemon status|start|stop  モデル常駐デーモンの操作 (search が自動起動し、30 分無操作で終了)
+  files TERM...         TERM をすべて含むノートをヒット数順に列挙 (大小無視・リテラル)
+  grep  [RGOPT] REGEX   本文を正規表現で検索し、前後 2 行付きで表示
+  find  PATTERN         パス or title がマッチするノートを列挙
+  index [DIR]           path<TAB>type<TAB>title<TAB>tags を列挙 (DIR は Vault 相対)
+  path                  Vault のルートを表示
+
+env: LIFE_VAULT で Vault の場所を上書き
+EOF
+}
+
+# frontmatter の type/title/tags と最初の H1 を読み、1 ノート 1 行の TSV にする
+meta() {
+  [ "$#" -eq 0 ] && return 0
+  awk '
+    function flush() {
+      if (f == "") return
+      if (title == "") title = h1
+      if (title == "") { title = f; sub(/.*\//, "", title); sub(/\.md$/, "", title) }
+      print f "\t" type "\t" title "\t" tags
+    }
+    FNR == 1 { flush(); f = FILENAME; sub(/^\.\//, "", f); type = title = tags = h1 = ""; infm = intags = 0 }
+    FNR == 1 && /^---[[:space:]]*$/ { infm = 1; next }
+    infm && /^---[[:space:]]*$/ { infm = 0; next }
+    infm {
+      if ($0 ~ /^tags:/) {
+        v = $0; sub(/^tags:[[:space:]]*/, "", v); gsub(/[\[\]"]/, "", v)
+        if (v != "") tags = v; else intags = 1
+        next
+      }
+      if (intags && $0 ~ /^[[:space:]]*-[[:space:]]/) {
+        v = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", v); gsub(/"/, "", v)
+        tags = (tags == "" ? v : tags "," v); next
+      }
+      intags = 0
+      if ($0 ~ /^type:/) { type = $0; sub(/^type:[[:space:]]*/, "", type); gsub(/"/, "", type) }
+      else if ($0 ~ /^title:/) { title = $0; sub(/^title:[[:space:]]*/, "", title); gsub(/^"|"$/, "", title) }
+      next
+    }
+    /^# / { h1 = substr($0, 3); nextfile }
+    END { flush() }
+  ' "$@"
+}
+
+list_md() {
+  local dir="${1:-.}"
+  if [ -n "$RG" ]; then
+    "$RG" --files --hidden -g '*.md' -g '!.git/**' -g '!.obsidian/**' -g '!.trash/**' "$dir" | sed 's|^\./||' | sort
+  else
+    find "$dir" -name '*.md' -not -path '*/.git/*' -not -path '*/.obsidian/*' -not -path '*/.trash/*' | sed 's|^\./||' | sort
+  fi
+}
+
+# 各 TERM を含むファイルに絞り込み、残ったファイルを総ヒット数で並べる
+cmd_files() {
+  [ "$#" -eq 0 ] && { usage; exit 2; }
+  local files term
+  files="$(list_md)"
+  for term in "$@"; do
+    [ -z "$files" ] && break
+    if [ -n "$RG" ]; then
+      files="$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 "$RG" -l -i -F -- "$term" 2>/dev/null || true)"
+    else
+      files="$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep -l -i -F -- "$term" 2>/dev/null || true)"
+    fi
+  done
+  [ -z "$files" ] && { echo "no match: $*" >&2; exit 1; }
+  local counts
+  counts="$(for term in "$@"; do
+    printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 grep -c -i -F -H -- "$term" 2>/dev/null || true
+  done | awk -F: '{ n = $NF; sub(/:[0-9]+$/, ""); c[$0] += n } END { for (f in c) print c[f] "\t" f }')"
+  printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 bash -c "$(declare -f meta); meta \"\$@\"" _ \
+    | awk -F'\t' 'NR == FNR { c[$2] = $1; next } { print c[$1] "\t" $1 "\t" $2 "\t" $3 }' <(printf '%s\n' "$counts") - \
+    | sort -t$'\t' -k1,1nr
+}
+
+cmd_grep() {
+  [ "$#" -eq 0 ] && { usage; exit 2; }
+  if [ -n "$RG" ]; then
+    "$RG" -S --hidden -g '*.md' -g '!.git/**' -g '!.obsidian/**' -g '!.trash/**' -n -C 2 --heading "$@" .
+  else
+    grep -r -n -i -E -C 2 --include='*.md' --exclude-dir=.git --exclude-dir=.obsidian --exclude-dir=.trash "$@" .
+  fi
+}
+
+cmd_find() {
+  [ "$#" -ne 1 ] && { usage; exit 2; }
+  list_md | tr '\n' '\0' | xargs -0 bash -c "$(declare -f meta); meta \"\$@\"" _ \
+    | awk -F'\t' -v q="$1" 'BEGIN { q = tolower(q) } index(tolower($1), q) || index(tolower($3), q)'
+}
+
+cmd_index() {
+  list_md "${1:-.}" | tr '\n' '\0' | xargs -0 bash -c "$(declare -f meta); meta \"\$@\"" _
+}
+
+[ -d "$VAULT" ] || { echo "vault not found: $VAULT" >&2; exit 1; }
+cd "$VAULT"
+
+cmd="${1:-}"
+[ "$#" -gt 0 ] && shift
+case "$cmd" in
+  search|build|stats|daemon) exec "$HERE/life-index" "$cmd" "$@" ;;
+  files) cmd_files "$@" ;;
+  grep)  cmd_grep "$@" ;;
+  find)  cmd_find "$@" ;;
+  index) cmd_index "$@" ;;
+  path)  echo "$VAULT" ;;
+  *)     usage; [ -z "$cmd" ] || [ "$cmd" = "-h" ] || [ "$cmd" = "--help" ] || exit 2 ;;
+esac
