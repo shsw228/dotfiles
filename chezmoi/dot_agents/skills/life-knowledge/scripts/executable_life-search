@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VAULT="${LIFE_VAULT:-$HOME/Developer/ghq/github.com/shsw228/Life}"
-RG="$(type -P rg || true)"
 HERE="$(cd "$(dirname "$0")" && pwd)"
+VAULT="${LIFE_VAULT:-$(cat "$HERE/../vault" 2>/dev/null || echo "$HOME/Developer/ghq/github.com/shsw228/Life")}"
+RG="$(type -P rg || true)"
 
 usage() {
   cat <<'EOF'
@@ -17,9 +17,13 @@ usage: life-search <command> [args]
   grep  [RGOPT] REGEX   本文を正規表現で検索し、前後 2 行付きで表示
   find  PATTERN         パス or title がマッチするノートを列挙
   index [DIR]           path<TAB>type<TAB>title<TAB>tags を列挙 (DIR は Vault 相対)
+  read  NAME            ノート全文 (NAME は Vault 相対パスか、wikilink と同じくファイル名だけでも可)
+  props NAME            frontmatter
+  links NAME            wikilink 先を target<TAB>path で列挙
+  backlinks NAME        NAME へ wikilink しているノートを count<TAB>path で列挙
   path                  Vault のルートを表示
 
-env: LIFE_VAULT で Vault の場所を上書き
+env: LIFE_VAULT で Vault の場所を上書き (既定はスキル直下の vault ファイル)
 EOF
 }
 
@@ -107,6 +111,57 @@ cmd_index() {
   list_md "${1:-.}" | tr '\n' '\0' | xargs -0 bash -c "$(declare -f meta); meta \"\$@\"" _
 }
 
+# wikilink と同じ解決: Vault 相対パス (拡張子省略可) か、同名ノートのうちパスが最も短いもの
+resolve() {
+  local name="${1%.md}"
+  [ -f "$name.md" ] && { echo "$name.md"; return 0; }
+  [ -f "$1" ] && { echo "$1"; return 0; }
+  # macOS の awk はロケールの照合順で比較し、日本語同士を等しいと判定するので C ロケールで比べる
+  list_md | LC_ALL=C awk -v n="$(printf '%s' "${name##*/}" | LC_ALL=C tr '[:upper:]' '[:lower:]')" '
+    { b = tolower($0); sub(/.*\//, "", b); sub(/\.md$/, "", b) }
+    b == n { print length($0) "\t" $0 }' | sort -n | head -n 1 | cut -f2 | grep . \
+    || { echo "note not found: $1" >&2; return 1; }
+}
+
+cmd_read() {
+  [ "$#" -ne 1 ] && { usage; exit 2; }
+  local path
+  path="$(resolve "$1")"
+  cat "$path"
+}
+
+cmd_props() {
+  [ "$#" -ne 1 ] && { usage; exit 2; }
+  local path
+  path="$(resolve "$1")"
+  awk 'NR == 1 && /^---[[:space:]]*$/ { infm = 1; next } infm && /^---[[:space:]]*$/ { exit } infm' "$path"
+}
+
+cmd_links() {
+  [ "$#" -ne 1 ] && { usage; exit 2; }
+  local target path
+  path="$(resolve "$1")"
+  grep -o '\[\[[^]]*\]\]' "$path" | sed -e 's/^\[\[//' -e 's/\]\]$//' -e 's/[|#^].*//' | awk 'NF && !seen[$0]++' \
+    | while IFS= read -r target; do
+        path="$(resolve "$target" 2>/dev/null || echo "(unresolved)")"
+        printf '%s\t%s\n' "$target" "$path"
+      done
+}
+
+cmd_backlinks() {
+  [ "$#" -ne 1 ] && { usage; exit 2; }
+  local path base re
+  path="$(resolve "$1")"
+  base="${path%.md}"
+  re="$(printf '%s\n%s\n' "${base##*/}" "$base" | sed 's/[][\.*^$?+(){}|/]/\\&/g' | paste -sd'|' -)"
+  re="\\[\\[($re)(\\.md)?([|#^][^]]*)?\\]\\]"
+  if [ -n "$RG" ]; then
+    list_md | tr '\n' '\0' | xargs -0 "$RG" -c -i -e "$re" 2>/dev/null || true
+  else
+    list_md | tr '\n' '\0' | xargs -0 grep -c -i -E -H -e "$re" 2>/dev/null | grep -v ':0$' || true
+  fi | LC_ALL=C awk -F: -v self="$path" '{ n = $NF; sub(/:[0-9]+$/, "") } $0 != self { print n "\t" $0 }' | sort -t$'\t' -k1,1nr
+}
+
 [ -d "$VAULT" ] || { echo "vault not found: $VAULT" >&2; exit 1; }
 cd "$VAULT"
 
@@ -118,6 +173,10 @@ case "$cmd" in
   grep)  cmd_grep "$@" ;;
   find)  cmd_find "$@" ;;
   index) cmd_index "$@" ;;
+  read)  cmd_read "$@" ;;
+  props) cmd_props "$@" ;;
+  links) cmd_links "$@" ;;
+  backlinks) cmd_backlinks "$@" ;;
   path)  echo "$VAULT" ;;
   *)     usage; [ -z "$cmd" ] || [ "$cmd" = "-h" ] || [ "$cmd" = "--help" ] || exit 2 ;;
 esac

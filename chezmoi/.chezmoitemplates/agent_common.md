@@ -19,7 +19,23 @@
 - 既存の規約やスタイルを尊重する
 - 影響が大きい変更は段階的に提案する
 - Python を実行する際はグローバル環境を直接汚さず、原則として `uv run` など `uv` 経由を用いる
+{{- if dig "profile" "is_personal_pc" false . }}
 - ユーザー固有のドメイン知識（自宅・機材・ホームサーバー・個人プロジェクトの過去の調査や設計）が要るときは、推測する前に `life-knowledge` スキルで Life Vault を検索する
+{{- else }}
+
+## 業務のドメイン知識
+- 案件の経緯・見積もり・決定事項・調査メモは `life-knowledge` スキルで vault を検索する。案件の残作業や前提を聞かれたら、リポジトリだけで判断せず先に vault を確認する
+{{- end }}
+
+## iOS / Xcode
+- **Xcode プロジェクトのビルド・テスト・実行は `xcodebuild` を直接叩かず、Xcode 内蔵の MCP（`xcode` サーバ）のツールを使う。** Xcode 本体のビルドシステムとインデックスを共有するため、DerivedData の二重生成や設定ズレが起きない。
+- `mcp__xcode__*` が見当たらない場合は `claude mcp list` で `xcode` の接続を確認する。未登録なら次で登録する（登録後は新しいセッションから利用可能）。
+  ```sh
+  claude mcp add xcode --scope user -- xcrun mcpbridge
+  ```
+- headless 許可は `xcrun mcp-server status` が `Permission: enabled` なら不要。必要な場合の `sudo mcp-server enable` はユーザーに実行してもらう。
+- 対象プロジェクトは `xcrun mcp-server open <path>.xcodeproj` で開く。
+- `xcodebuild` を使うのは MCP がどうしても使えないときだけ。その場合は理由を伝える。
 
 ## 変更の扱い
 - 破壊的操作は事前確認する
