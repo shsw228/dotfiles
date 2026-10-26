@@ -9,7 +9,7 @@ Use this skill whenever the user gives a YouTube URL (`youtube.com/watch?v=...`,
 
 - a summary
 - a structured note
-- a literature note in the Notes vault
+- a literature note in the knowledge vault
 - the raw transcript itself
 - chapter-by-chapter breakdown
 
@@ -93,7 +93,7 @@ The script:
 Pick the output shape from what the user asked for:
 
 - **"要約して" / "summarize"** → write a Japanese summary directly in chat. Use chapter timestamps from the description if present. Keep under ~400 Japanese chars unless the user asks for detail.
-- **"Noteを作成" / "ノートにして"** → invoke the `notes-vault-archiver` skill conventions and write a literature note (`type: literature`) under `02.Zettelkasten/literature/` of the Notes vault. Filename pattern: `YYYY-MM-DD-<sanitized title>.md`. Use today's date.
+- **"Noteを作成" / "ノートにして"** → write a literature note into the knowledge vault (`$(~/.agents/skills/life-knowledge/scripts/life-search path)`). Follow that vault's `AGENTS.md` for the folder, `type` value, filename and how to write; the template below is the fallback. Use today's date.
 - **"トランスクリプトを出して" / "raw transcript"** → return `/tmp/<ID>.txt` content (or paste it) without summarization.
 - **No explicit ask** → default to a short Japanese summary plus an offer to save it as a note.
 
