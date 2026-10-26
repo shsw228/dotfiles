@@ -75,6 +75,7 @@ def connect():
     if row and row[0] != MODEL:
         db.executescript("delete from chunks; delete from chunks_fts; delete from files;")
     db.execute("insert or replace into meta values('model', ?)", (MODEL,))
+    db.commit()
     return db
 
 
