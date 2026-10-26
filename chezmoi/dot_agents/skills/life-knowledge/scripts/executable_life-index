@@ -19,7 +19,11 @@ from pathlib import Path
 
 import numpy as np
 
-VAULT = Path(os.environ.get("LIFE_VAULT", Path.home() / "Developer/ghq/github.com/shsw228/Life"))
+VAULT_FILE = Path(__file__).resolve().parent.parent / "vault"
+VAULT = Path(
+    os.environ.get("LIFE_VAULT")
+    or (VAULT_FILE.read_text().strip() if VAULT_FILE.exists() else Path.home() / "Developer/ghq/github.com/shsw228/Life")
+)
 DB_PATH = Path(os.environ.get("LIFE_INDEX_DB", Path.home() / ".cache/life-knowledge/index.sqlite"))
 MODEL = os.environ.get("LIFE_EMBED_MODEL", "minishlab/potion-multilingual-128M")
 SOCK = DB_PATH.with_name("life-index.sock")
