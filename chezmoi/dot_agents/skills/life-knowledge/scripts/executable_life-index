@@ -355,6 +355,7 @@ def request(req, timeout=30):
 
 def spawn_daemon():
     log = SOCK.with_name("daemon.log")
+    log.parent.mkdir(parents=True, exist_ok=True)
     with open(log, "ab") as out:
         subprocess.Popen(
             [sys.executable, os.path.abspath(__file__), "serve"],
