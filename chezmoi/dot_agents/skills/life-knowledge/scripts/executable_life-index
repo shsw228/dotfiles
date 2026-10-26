@@ -1,0 +1,438 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["model2vec>=0.6", "numpy>=2"]
+# ///
+"""Life vault のハイブリッド検索 (SQLite FTS5 trigram + Model2Vec, RRF で統合)。"""
+
+import argparse
+import fcntl
+import json
+import os
+import re
+import socket
+import sqlite3
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+
+VAULT = Path(os.environ.get("LIFE_VAULT", Path.home() / "Developer/ghq/github.com/shsw228/Life"))
+DB_PATH = Path(os.environ.get("LIFE_INDEX_DB", Path.home() / ".cache/life-knowledge/index.sqlite"))
+MODEL = os.environ.get("LIFE_EMBED_MODEL", "minishlab/potion-multilingual-128M")
+SOCK = DB_PATH.with_name("life-index.sock")
+IDLE_SECONDS = int(os.environ.get("LIFE_INDEX_IDLE", "1800"))
+EXCLUDE_DIRS = {".git", ".obsidian", ".trash", "node_modules"}
+CHUNK_CHARS = 1200
+RRF_K = 60
+
+_model = None
+_matrix = {}
+
+
+def model():
+    global _model
+    if _model is None:
+        hub = Path(os.environ.get("HF_HOME", Path.home() / ".cache/huggingface")) / "hub"
+        if (hub / f"models--{MODEL.replace('/', '--')}").exists():
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        from model2vec import StaticModel
+
+        # float16 でも埋め込みは float32 と一致し、常駐メモリが半分になる
+        _model = StaticModel.from_pretrained(MODEL, quantize_to="float16")
+    return _model
+
+
+def embed(texts):
+    v = model().encode(texts).astype(np.float32)
+    v /= np.linalg.norm(v, axis=1, keepdims=True) + 1e-12
+    return v
+
+
+def connect():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(DB_PATH, timeout=30)
+    db.execute("pragma journal_mode=wal")
+    db.executescript(
+        """
+        create table if not exists meta(key text primary key, value text);
+        create table if not exists files(
+            path text primary key, mtime real, size integer, type text, title text, tags text);
+        create table if not exists chunks(
+            id integer primary key, path text, heading text, body text, emb blob);
+        create index if not exists chunks_path on chunks(path);
+        create virtual table if not exists chunks_fts using fts5(
+            title, heading, body, content='', contentless_delete=1, tokenize='trigram');
+        """
+    )
+    row = db.execute("select value from meta where key='model'").fetchone()
+    if row and row[0] != MODEL:
+        db.executescript("delete from chunks; delete from chunks_fts; delete from files;")
+    db.execute("insert or replace into meta values('model', ?)", (MODEL,))
+    return db
+
+
+def scan():
+    out = {}
+    for root, dirs, files in os.walk(VAULT):
+        dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
+        for f in files:
+            if f.endswith(".md"):
+                p = Path(root, f)
+                st = p.stat()
+                out[p.relative_to(VAULT).as_posix()] = (st.st_mtime, st.st_size)
+    return out
+
+
+def parse(text, path):
+    fm = {}
+    body = text
+    m = re.match(r"---\n(.*?)\n---\n?", text, re.S)
+    if m:
+        body = text[m.end():]
+        key = None
+        for line in m.group(1).splitlines():
+            if re.match(r"^\s+-\s", line) and key:
+                fm.setdefault(key, []).append(line.split("-", 1)[1].strip().strip('"'))
+            elif ":" in line and not line.startswith(" "):
+                key, val = line.split(":", 1)
+                val = val.strip().strip('"')
+                if val.startswith("[") or not val:
+                    val = [t.strip() for t in val.strip("[]").split(",") if t.strip()]
+                fm[key] = val
+    tags = fm.get("tags", [])
+    tags = ",".join(tags) if isinstance(tags, list) else str(tags)
+    h1 = re.search(r"^# (.+)$", body, re.M)
+    scalar = lambda k: fm[k] if isinstance(fm.get(k), str) else ""
+    title = scalar("title") or (h1.group(1).strip() if h1 else Path(path).stem)
+    return scalar("type"), title, tags, body
+
+
+def chunk(body):
+    """見出しで区切り、長いセクションは段落境界で CHUNK_CHARS 以下に割る。"""
+    sections, stack, buf = [], [], []
+
+    def flush():
+        txt = "\n".join(buf).strip()
+        if txt:
+            sections.append((" > ".join(stack), txt))
+        buf.clear()
+
+    in_code = False
+    for line in body.splitlines():
+        if line.startswith("```"):
+            in_code = not in_code
+        m = None if in_code else re.match(r"^(#{1,4})\s+(.+)", line)
+        if m:
+            flush()
+            level = len(m.group(1))
+            stack[:] = stack[: level - 1] + [m.group(2).strip()]
+        else:
+            buf.append(line)
+    flush()
+
+    out = []
+    for heading, txt in sections:
+        cur = ""
+        for para in re.split(r"\n\s*\n", txt):
+            for piece in [para] if len(para) <= CHUNK_CHARS else para.splitlines():
+                if cur and len(cur) + len(piece) > CHUNK_CHARS:
+                    out.append((heading, cur))
+                    cur = ""
+                cur = f"{cur}\n{piece}" if cur else piece
+        if cur.strip():
+            out.append((heading, cur))
+    return out
+
+
+def update(db, full=False, quiet=False):
+    current = scan()
+    indexed = {p: (m, s) for p, m, s in db.execute("select path, mtime, size from files")}
+    if full:
+        indexed = {}
+    stale = [p for p, v in current.items() if indexed.get(p) != v]
+    removed = [p for p in indexed if p not in current]
+    if not stale and not removed:
+        return 0
+
+    def drop(p):
+        ids = [r[0] for r in db.execute("select id from chunks where path=?", (p,))]
+        db.executemany("delete from chunks_fts where rowid=?", [(i,) for i in ids])
+        db.execute("delete from chunks where path=?", (p,))
+        db.execute("delete from files where path=?", (p,))
+
+    with db:
+        for p in removed + stale:
+            drop(p)
+        for p in stale:
+            text = (VAULT / p).read_text(encoding="utf-8", errors="replace")
+            type_, title, tags, body = parse(text, p)
+            pieces = chunk(body) or [("", title)]
+            vecs = embed([f"{title}\n{h}\n{t}" for h, t in pieces])
+            for (h, t), v in zip(pieces, vecs):
+                cid = db.execute(
+                    "insert into chunks(path, heading, body, emb) values(?,?,?,?)", (p, h, t, v.tobytes())
+                ).lastrowid
+                db.execute(
+                    "insert into chunks_fts(rowid, title, heading, body) values(?,?,?,?)",
+                    (cid, f"{title} {tags} {p}", h, t),
+                )
+            db.execute("insert into files values(?,?,?,?,?,?)", (p, *current[p], type_, title, tags))
+    _matrix.clear()
+    if not quiet:
+        print(f"indexed {len(stale)} file(s), removed {len(removed)}", file=sys.stderr)
+    return len(stale) + len(removed)
+
+
+def fts_ranks(db, query, limit):
+    terms = [t for t in re.split(r"[\s　]+", query) if t]
+    long_terms = [t for t in terms if len(t) >= 3]
+    ranks = {}
+    if long_terms:
+        expr = " OR ".join('"' + t.replace('"', '""') + '"' for t in long_terms)
+        rows = db.execute(
+            "select rowid from chunks_fts where chunks_fts match ? order by bm25(chunks_fts, 5, 3, 1) limit ?",
+            (expr, limit),
+        )
+        ranks = {r[0]: i for i, r in enumerate(rows)}
+    # trigram は 2 文字以下の語を引けないので LIKE で補う
+    for t in (t for t in terms if len(t) < 3):
+        rows = db.execute(
+            "select id from chunks where body like ? or heading like ? limit ?", (f"%{t}%", f"%{t}%", limit)
+        )
+        for i, r in enumerate(rows):
+            ranks.setdefault(r[0], len(ranks) + i)
+    return ranks
+
+
+def vec_ranks(db, query, limit):
+    if not _matrix:
+        rows = db.execute("select id, emb from chunks").fetchall()
+        if not rows:
+            return {}
+        _matrix["ids"] = np.array([r[0] for r in rows])
+        _matrix["emb"] = np.frombuffer(b"".join(r[1] for r in rows), dtype=np.float32).reshape(len(rows), -1)
+    sims = _matrix["emb"] @ embed([query])[0]
+    order = np.argsort(-sims)[:limit]
+    return {int(_matrix["ids"][i]): n for n, i in enumerate(order)}
+
+
+def search(db, q):
+    """q: query, k, mode, dir, type, all_chunks を持つ dict。"""
+    query, k, mode = q["query"], int(q.get("k") or 8), q.get("mode") or "hybrid"
+    dir_, type_filter = q.get("dir"), q.get("type")
+    pool = 10**9 if dir_ or type_filter else max(k * 10, 100)
+    ranks = []
+    if mode in ("hybrid", "fts"):
+        ranks.append(fts_ranks(db, query, pool))
+    if mode in ("hybrid", "vec"):
+        ranks.append(vec_ranks(db, query, pool))
+    score = {}
+    for r in ranks:
+        for cid, n in r.items():
+            score[cid] = score.get(cid, 0.0) + 1.0 / (RRF_K + n + 1)
+    if not score:
+        return []
+
+    marks = ",".join("?" * len(score))
+    rows = db.execute(
+        "select c.id, c.path, c.heading, c.body, f.type, f.title, f.tags"
+        f" from chunks c join files f using(path) where c.id in ({marks})",
+        list(score),
+    ).fetchall()
+    hits = []
+    for cid, path, heading, body, type_, title, tags in rows:
+        if dir_ and not path.startswith(dir_.rstrip("/") + "/"):
+            continue
+        if type_filter and type_ != type_filter:
+            continue
+        hits.append({"score": score[cid], "path": path, "heading": heading, "text": body,
+                     "type": type_, "title": title, "tags": tags})
+    hits.sort(key=lambda h: -h["score"])
+    if not q.get("all_chunks"):
+        # ノートの順位は上位 3 chunk の合計。表示するのは最良 chunk
+        best, total, seen = {}, {}, {}
+        for h in hits:
+            best.setdefault(h["path"], h)
+            if seen.get(h["path"], 0) < 3:
+                seen[h["path"]] = seen.get(h["path"], 0) + 1
+                total[h["path"]] = total.get(h["path"], 0.0) + h["score"]
+        hits = sorted(({**h, "score": total[p]} for p, h in best.items()), key=lambda h: -h["score"])
+    hits = hits[:k]
+    for h in hits:
+        h["abs_path"] = str(VAULT / h["path"])
+        h["snippet"] = snippet(h["text"], query)
+    return hits
+
+
+def snippet(body, query, width=240):
+    flat = re.sub(r"\s+", " ", body).strip()
+    pos = -1
+    for t in re.split(r"[\s　]+", query):
+        if t:
+            pos = flat.lower().find(t.lower())
+            if pos >= 0:
+                break
+    start = max(0, pos - width // 3) if pos >= 0 else 0
+    s = flat[start : start + width]
+    return ("…" if start else "") + s + ("…" if start + width < len(flat) else "")
+
+
+def handle(db, req):
+    cmd = req.get("cmd")
+    if cmd == "search":
+        update(db, quiet=True)
+        return {"hits": search(db, req)}
+    if cmd == "ping":
+        return {"ok": True, "pid": os.getpid(), "model": MODEL}
+    return {"error": f"unknown cmd: {cmd}"}
+
+
+def serve():
+    """モデルを常駐させ、SOCK で 1 行 JSON の要求を受ける。IDLE_SECONDS 使われなければ終了。"""
+    SOCK.parent.mkdir(parents=True, exist_ok=True)
+    lock = open(SOCK.with_suffix(".lock"), "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return
+    SOCK.unlink(missing_ok=True)
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(str(SOCK))
+    os.chmod(SOCK, 0o600)
+    srv.listen(8)
+    srv.settimeout(60)
+    db = connect()
+    update(db, quiet=True)
+    embed(["warmup"])
+    last = time.monotonic()
+    stop = False
+    try:
+        while not stop and time.monotonic() - last < IDLE_SECONDS:
+            try:
+                conn, _ = srv.accept()
+            except TimeoutError:
+                continue
+            last = time.monotonic()
+            with conn:
+                conn.settimeout(10)
+                try:
+                    req = json.loads(conn.makefile("rb").readline() or b"{}")
+                    if req.get("cmd") == "stop":
+                        stop = True
+                        res = {"ok": True}
+                    else:
+                        res = handle(db, req)
+                except Exception as e:  # noqa: BLE001 — 1 要求の失敗でデーモンを落とさない
+                    res = {"error": f"{type(e).__name__}: {e}"}
+                try:
+                    conn.sendall(json.dumps(res, ensure_ascii=False).encode() + b"\n")
+                except OSError:
+                    pass
+    finally:
+        srv.close()
+        SOCK.unlink(missing_ok=True)
+
+
+def request(req, timeout=30):
+    """デーモンへ要求を送る。いなければ None。"""
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as c:
+            c.settimeout(timeout)
+            c.connect(str(SOCK))
+            c.sendall(json.dumps(req, ensure_ascii=False).encode() + b"\n")
+            data = c.makefile("rb").readline()
+    except (FileNotFoundError, ConnectionRefusedError, TimeoutError, OSError):
+        return None
+    return json.loads(data) if data else None
+
+
+def spawn_daemon():
+    log = SOCK.with_name("daemon.log")
+    with open(log, "ab") as out:
+        subprocess.Popen(
+            [sys.executable, os.path.abspath(__file__), "serve"],
+            stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True,
+        )
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="life-index")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    b = sub.add_parser("build", help="インデックスを差分更新 (--full で作り直し)")
+    b.add_argument("--full", action="store_true")
+    s = sub.add_parser("search", help="ハイブリッド検索")
+    s.add_argument("query")
+    s.add_argument("-k", type=int, default=8)
+    s.add_argument("--mode", choices=["hybrid", "fts", "vec"], default="hybrid")
+    s.add_argument("--dir", help="Vault 相対のディレクトリで絞る (例: 03.Projects)")
+    s.add_argument("--type", help="frontmatter の type で絞る")
+    s.add_argument("--all-chunks", action="store_true", help="同じノートの複数 chunk も出す")
+    s.add_argument("--full-text", action="store_true", help="snippet ではなく chunk 全文を出す")
+    s.add_argument("--json", action="store_true", help="JSON で出力")
+    s.add_argument("--no-daemon", action="store_true", help="デーモンを使わず自プロセスで検索")
+    sub.add_parser("stats")
+    sub.add_parser("serve", help="デーモンとして常駐 (通常は search が自動起動する)")
+    d = sub.add_parser("daemon", help="デーモンの状態確認・停止")
+    d.add_argument("action", choices=["status", "start", "stop"])
+    args = ap.parse_args()
+
+    if args.cmd == "serve":
+        serve()
+        return
+    if args.cmd == "daemon":
+        if args.action == "start":
+            if request({"cmd": "ping"}, timeout=2) is None:
+                spawn_daemon()
+            print("starting", file=sys.stderr)
+        elif args.action == "stop":
+            print("stopped" if request({"cmd": "stop"}, timeout=5) else "not running")
+        else:
+            res = request({"cmd": "ping"}, timeout=2)
+            print(f"running pid={res['pid']} sock={SOCK}" if res else "not running")
+            sys.exit(0 if res else 1)
+        return
+
+    if args.cmd == "search":
+        q = {"cmd": "search", "query": args.query, "k": args.k, "mode": args.mode, "dir": args.dir,
+             "type": args.type, "all_chunks": args.all_chunks}
+        res = None if args.no_daemon or os.environ.get("LIFE_INDEX_NO_DAEMON") else request(q)
+        if res is None:
+            if args.mode != "fts" and not args.no_daemon and not os.environ.get("LIFE_INDEX_NO_DAEMON"):
+                spawn_daemon()
+            db = connect()
+            update(db, quiet=True)
+            res = {"hits": search(db, q)}
+        if "error" in res:
+            print(res["error"], file=sys.stderr)
+            sys.exit(2)
+        hits = res["hits"]
+        if args.json:
+            print(json.dumps(hits, ensure_ascii=False))
+            return
+        if not hits:
+            print(f"no match: {args.query}", file=sys.stderr)
+            sys.exit(1)
+        for h in hits:
+            loc = h["path"] + (f" § {h['heading']}" if h["heading"] else "")
+            print(f"[{h['score']:.4f}] {loc}  ({h['type'] or '-'}: {h['title']})")
+            print(h["text"].strip() if args.full_text else "  " + h["snippet"])
+            print()
+        return
+
+    db = connect()
+    if args.cmd == "build":
+        if update(db, full=args.full) == 0:
+            print("up to date", file=sys.stderr)
+    else:
+        update(db, quiet=True)
+        f, c = (db.execute(f"select count(*) from {t}").fetchone()[0] for t in ("files", "chunks"))
+        print(f"vault: {VAULT}\ndb: {DB_PATH}\nmodel: {MODEL}\nfiles: {f}\nchunks: {c}")
+        res = request({"cmd": "ping"}, timeout=2)
+        print(f"daemon: pid {res['pid']}" if res else "daemon: not running")
+
+
+if __name__ == "__main__":
+    main()
