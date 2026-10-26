@@ -25,3 +25,9 @@ type = "popup"
 command = "~/.config/herdr/open-space.sh"
 width = "80%"
 height = "80%"
+
+[[keys.command]]
+key = "prefix+space"
+type = "shell"
+command = "herdr plugin pane open --plugin palette --entrypoint palette --width 80% --height 80%"
+description = "Command palette"
