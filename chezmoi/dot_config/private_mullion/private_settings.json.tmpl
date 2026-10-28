@@ -1,0 +1,12 @@
+{{- /* HTTP API は家の LAN にいる個人用の Mac だけ開ける（Echo Show の showdeck が使う）。 */ -}}
+{{- $api := dig "profile" "is_personal_pc" false . -}}
+{
+  "api" : {
+    "allowOtherDevices" : {{ $api }},
+    "enabled" : {{ $api }},
+    "port" : 55777,
+    "token" : ""
+  },
+  "followInputs" : true,
+  "showDockIconWithSettings" : true
+}

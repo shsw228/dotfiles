@@ -89,6 +89,7 @@ jobs:
           done <<'EOF_TARGETS'
           .config/aerospace/aerospace.toml
           .config/git/config
+          .config/mullion/settings.json
           .local/bin/ssh-sign
           .local/bin/keepresso-settings-export
           .local/bin/brew-drift
@@ -116,6 +117,8 @@ jobs:
 
           test -f "$home/.config/aerospace/aerospace.toml"
           test -f "$home/.config/git/config"
+          test -f "$home/.config/mullion/settings.json"
+          python3 -m json.tool "$home/.config/mullion/settings.json" >/dev/null
           test -x "$home/.local/bin/ssh-sign"
           test -x "$home/.local/bin/keepresso-settings-export"
           test -x "$home/.local/bin/brew-drift"
@@ -138,6 +141,7 @@ jobs:
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_20_apply-macos-defaults.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_22_apply-keepresso-settings.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_30_configure-login-items.sh.tmpl"
+          sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_after_40_install-mullion.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_onchange_50_set-ssh-auth-sock.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_60_finalize-ssh-remote.sh.tmpl"
           sh -n "$GITHUB_WORKSPACE/chezmoi/run_once_17_setup-git-signing.sh.tmpl"
