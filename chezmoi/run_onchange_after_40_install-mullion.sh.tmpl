@@ -1,0 +1,78 @@
+#!/bin/sh
+# Mullion を GitHub の Release（Private リポジトリ）から入れ、~/.config/mullion/settings.json を反映する。
+#
+# Homebrew に無く公証もしていないので、gh で zip を取って SHA-256 を照合し、検疫属性を外して置く。
+# アプリは設定ファイルを起動時に一度読むだけなので、設定が変わったら終了させて起動し直す。
+# 終了は quit で行う。終了時に Mullion が切断したディスプレイを再接続するため、SIGTERM で落とさない。
+# settings.json hash: {{ include "dot_config/private_mullion/private_settings.json.tmpl" | sha256sum }}
+set -eu
+{{ template "step.sh" "Mullion のインストール" }}
+
+version="0.3.0"
+sha256="8c4cbb98c4157070ce0c0ff48b603429661f3f9ba45d15b4483ba14810081883"
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+app="/Applications/Mullion.app"
+bundle_id="com.shsw228.mullion"
+
+running() { pgrep -f "$app/Contents/MacOS/Mullion" >/dev/null 2>&1; }
+
+quit_mullion() {
+  osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
+  i=0
+  while running && [ "$i" -lt 100 ]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+  ! running
+}
+
+was_running=0
+if running; then
+  was_running=1
+fi
+
+installed="$(defaults read "$app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null)" || installed=""
+if [ "$installed" != "$version" ]; then
+  if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
+    say "gh が使えないため Mullion $version のインストールを見送ります（gh auth login のあと chezmoi apply をやり直す）"
+    exit 0
+  fi
+
+  step "Mullion $version のダウンロード"
+  work="$(mktemp -d)"
+  cleanup() { rm -rf "$work"; }
+  if ! gh release download "v$version" --repo shsw228/Mullion --pattern "Mullion-$version.zip" --dir "$work"; then
+    say "Mullion $version をダウンロードできないため見送ります"
+    exit 0
+  fi
+  if [ "$(shasum -a 256 "$work/Mullion-$version.zip" | awk '{print $1}')" != "$sha256" ]; then
+    say "Mullion $version の zip の SHA-256 が一致しないため見送ります"
+    exit 0
+  fi
+  ditto -x -k "$work/Mullion-$version.zip" "$work/unzipped"
+
+  step "Mullion の入れ替え"
+  if running && ! quit_mullion; then
+    say "Mullion を終了できないため入れ替えを見送ります"
+    exit 0
+  fi
+  rm -rf "$app"
+  ditto "$work/unzipped/Mullion.app" "$app"
+  xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
+elif running; then
+  step "設定を読み直すための Mullion の終了"
+  if ! quit_mullion; then
+    say "Mullion を終了できないため、設定は次の起動から反映されます"
+    exit 0
+  fi
+fi
+
+step "Mullion の起動"
+open -g "$app"
+if [ "$was_running" = "0" ] && [ -z "$installed" ]; then
+  say "Mullion を入れました。ログイン時に起動するには Settings › General の Launch at login を ON にしてください"
+fi

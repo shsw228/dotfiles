@@ -56,6 +56,7 @@ chezmoi status
 - install packages from [`chezmoi/Brewfile`](./chezmoi/Brewfile)
 - apply macOS preferences from `run_onchange_20_apply-macos-defaults.sh.tmpl`
 - configure the Tinycast login item
+- install [Mullion](https://github.com/shsw228/Mullion) from its GitHub release with `gh` (needs `gh auth login`) and place `~/.config/mullion/settings.json`, restarting Mullion so it reads the file; the HTTP API is on only on personal PCs. Per-monitor settings (`monitors.json`) stay per Mac, since each Mac's input differs
 - place shell entrypoints such as `.zshenv`, `.zprofile`, and `.zshrc`, with their main contents under `~/.config/zsh/`
 - place app config such as `~/.config/git/config`, `~/.config/nvim`, and `~/.config/ghostty`
 - create `~/.1password-agent.sock` symlink (avoids space-in-path issue with the 1Password socket)
