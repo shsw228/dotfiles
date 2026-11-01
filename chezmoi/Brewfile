@@ -50,7 +50,7 @@ brew "starship"
 brew "tree-sitter-cli"
 brew "uv"
 brew "xcodegen"
-brew "xcodes", link: false
+brew "xcodes"
 brew "yammerjp/tap/pdef"
 brew "zoxide"
 
