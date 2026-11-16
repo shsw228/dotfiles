@@ -8,8 +8,8 @@
 set -eu
 {{ template "step.sh" "Mullion のインストール" }}
 
-version="0.4.0"
-sha256="bef2d4e57ed568e16ef188fd0549985afb81848f151785b3b4af8d2f97b9821a"
+version="0.6.0"
+sha256="0d57f2d34219b6cf8a8b28d9a286dae6d73029527e15a6c05eb45dc9e2fc3189"
 
 if [ "${CHEZMOI_CI:-0}" = "1" ]; then
   exit 0
