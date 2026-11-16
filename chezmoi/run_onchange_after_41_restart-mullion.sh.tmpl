@@ -1,0 +1,32 @@
+#!/bin/sh
+# Mullion は設定ファイルを起動時に一度読むだけなので、~/.config/mullion/settings.json が変わったら起動し直す。
+# 終了は quit で行う。終了時に Mullion が切断したディスプレイを再接続するため、SIGTERM で落とさない。
+# settings.json hash: {{ include "dot_config/private_mullion/modify_private_settings.json" | sha256sum }}
+set -eu
+{{ template "step.sh" "Mullion の設定の読み直し" }}
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+app="/Applications/Mullion.app"
+bundle_id="com.shsw228.mullion"
+
+running() { pgrep -f "$app/Contents/MacOS/Mullion" >/dev/null 2>&1; }
+
+running || exit 0
+
+step "設定を読み直すための Mullion の終了"
+osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
+i=0
+while running && [ "$i" -lt 100 ]; do
+  sleep 0.1
+  i=$((i + 1))
+done
+if running; then
+  say "Mullion を終了できないため、設定は次の起動から反映されます"
+  exit 0
+fi
+
+step "Mullion の起動"
+open -g "$app"
