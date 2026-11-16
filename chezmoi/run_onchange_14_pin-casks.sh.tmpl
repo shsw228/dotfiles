@@ -1,5 +1,5 @@
 #!/bin/sh
-# brew upgrade で更新すると再起動までクラッシュするアプリを upgrade 対象から外す。
+# brew upgrade で更新すると困るアプリ（再起動まで落ちる・終了されたまま起動し直されない）を upgrade 対象から外す。
 set -eu
 {{ template "step.sh" "cask の pin" }}
 
@@ -17,7 +17,7 @@ else
   exit 0
 fi
 
-for cask in google-chrome discord; do
+for cask in google-chrome discord tinycast; do
   "$brew_cmd" list --cask "$cask" >/dev/null 2>&1 || continue
   step "$cask"
   "$brew_cmd" pin --cask "$cask"
