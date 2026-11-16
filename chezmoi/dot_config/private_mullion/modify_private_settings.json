@@ -1,0 +1,20 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /* HTTP API は家の LAN にいる個人用の Mac だけ開ける（Echo Show の showdeck が使う）。トークンは Mullion で足すので、ここで決める値だけ書き換える。 */ -}}
+{{- $api := dig "profile" "is_personal_pc" false . -}}
+{{- $current := "{}" -}}
+{{- if trim .chezmoi.stdin -}}
+{{-   $current = .chezmoi.stdin -}}
+{{- end -}}
+{{- $settings := fromJson $current -}}
+{{- $apiSettings := dig "api" dict $settings -}}
+{{- $_ := set $apiSettings "allowOtherDevices" $api -}}
+{{- $_ := set $apiSettings "enabled" $api -}}
+{{- $_ := set $apiSettings "port" 55777 -}}
+{{- $_ := set $settings "api" $apiSettings -}}
+{{- $_ := set $settings "followInputs" true -}}
+{{- $_ := set $settings "showDockIconWithSettings" true -}}
+{{- if eq (toJson (fromJson $current)) (toJson $settings) -}}
+{{ .chezmoi.stdin }}
+{{- else -}}
+{{ toPrettyJson $settings }}
+{{ end -}}

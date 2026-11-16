@@ -1,0 +1,84 @@
+#!/bin/sh
+# Mullion を GitHub の最新の Release（Private リポジトリ、Pre-release も含む）から入れる。apply のたびに確かめる。
+#
+# Homebrew に無く公証もしていないので、gh で zip を取って GitHub の記録する SHA-256 と照合し、検疫属性を外して置く。
+# 終了は quit で行う。終了時に Mullion が切断したディスプレイを再接続するため、SIGTERM で落とさない。
+set -eu
+{{ template "step.sh" "Mullion の更新確認" }}
+
+if [ "${CHEZMOI_CI:-0}" = "1" ]; then
+  exit 0
+fi
+
+repo="shsw228/Mullion"
+app="/Applications/Mullion.app"
+bundle_id="com.shsw228.mullion"
+
+running() { pgrep -f "$app/Contents/MacOS/Mullion" >/dev/null 2>&1; }
+
+quit_mullion() {
+  osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
+  i=0
+  while running && [ "$i" -lt 100 ]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+  ! running
+}
+
+installed="$(defaults read "$app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null)" || installed=""
+
+# 入っていればオフラインや gh 未ログインでも黙って見送る。
+skip() {
+  [ -n "$installed" ] || say "$1"
+  exit 0
+}
+
+if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
+  skip "gh が使えないため Mullion のインストールを見送ります（gh auth login のあと chezmoi apply をやり直す）"
+fi
+
+step "Mullion の最新版の確認"
+tag="$(gh release list --repo "$repo" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null)" || tag=""
+[ -n "$tag" ] || skip "Mullion の最新版を確かめられないため見送ります"
+version="${tag#v}"
+[ "$installed" != "$version" ] || exit 0
+
+zip="Mullion-$version.zip"
+digest="$(gh release view "$tag" --repo "$repo" --json assets --jq ".assets[] | select(.name == \"$zip\") | .digest" 2>/dev/null)" || digest=""
+case "$digest" in
+  sha256:?*) sha256="${digest#sha256:}" ;;
+  *) skip "Mullion $version の zip の SHA-256 が分からないため見送ります" ;;
+esac
+
+step "Mullion $version のダウンロード"
+work="$(mktemp -d)"
+cleanup() { rm -rf "$work"; }
+if ! gh release download "$tag" --repo "$repo" --pattern "$zip" --dir "$work"; then
+  say "Mullion $version をダウンロードできないため見送ります"
+  exit 0
+fi
+if [ "$(shasum -a 256 "$work/$zip" | awk '{print $1}')" != "$sha256" ]; then
+  say "Mullion $version の zip の SHA-256 が一致しないため見送ります"
+  exit 0
+fi
+ditto -x -k "$work/$zip" "$work/unzipped"
+
+step "Mullion の入れ替え"
+was_running=0
+if running; then
+  was_running=1
+  if ! quit_mullion; then
+    say "Mullion を終了できないため入れ替えを見送ります"
+    exit 0
+  fi
+fi
+rm -rf "$app"
+ditto "$work/unzipped/Mullion.app" "$app"
+xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
+
+step "Mullion の起動"
+open -g "$app"
+if [ "$was_running" = "0" ] && [ -z "$installed" ]; then
+  say "Mullion を入れました。ログイン時に起動するには Settings › General の Launch at login を ON にしてください"
+fi
