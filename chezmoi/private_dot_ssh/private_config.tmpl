@@ -20,4 +20,16 @@ Host homeserver
     IdentityFile ~/.ssh/homeserver
     IdentitiesOnly yes
     AddressFamily inet
+
+Host windows
+    HostName DESKTOP-WIN.local
+    User humekuru
+    IdentityFile ~/.ssh/windows
+    IdentitiesOnly yes
+
+Host homeassistant
+    HostName homeassistant.local
+    User root
+    IdentityFile ~/.ssh/homeassistant
+    IdentitiesOnly yes
 {{- end }}

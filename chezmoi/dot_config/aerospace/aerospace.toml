@@ -100,19 +100,17 @@ enter = "mode main"
 esc = "mode main"
 
 [workspace-to-monitor-force-assignment]
-# 外部モニターがあれば名前付き 9 枚はすべてそちらへ送り、Built-in は 10.Pinned だけに使う。
-# 指定が無いワークスペースは main ディスプレイ (通常は Built-in) に寄ってしまうため全部書く。
-# 先頭パターンは built-in を含まない名前のモニターにだけ当たる。外部が無いときは main に落ちる。
-"1.Browser" = ['^(?!.*built-in).*$', 'main']
-"2.Terminal" = ['^(?!.*built-in).*$', 'main']
-"3.Editor" = ['^(?!.*built-in).*$', 'main']
-"4.AI" = ['^(?!.*built-in).*$', 'main']
-"5" = ['^(?!.*built-in).*$', 'main']
-"6" = ['^(?!.*built-in).*$', 'main']
-"7" = ['^(?!.*built-in).*$', 'main']
-"8" = ['^(?!.*built-in).*$', 'main']
-"9" = ['^(?!.*built-in).*$', 'main']
-"10.Pinned" = ['built-in.*', 'main']
+# Wacom / Built-in にマッチさせないため、名前付き 9 枚は Dell → その他外部 → main の順で探す。
+"1.Browser" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"2.Terminal" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"3.Editor" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"4.AI" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"5" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"6" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"7" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"8" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"9" = ['dell', '^(?!.*(built-in|wacom)).*$', 'main']
+"10.Pinned" = ['wacom', 'built-in', 'main']
 
 [[on-window-detected]]
 if = 'test %{app-bundle-id} = com.google.Chrome'

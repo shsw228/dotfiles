@@ -19,6 +19,7 @@
 - 既存の規約やスタイルを尊重する
 - 影響が大きい変更は段階的に提案する
 - Python を実行する際はグローバル環境を直接汚さず、原則として `uv run` など `uv` 経由を用いる
+- `~` 配下の設定ファイル（`~/.config/*`、`~/.claude/*`、`~/.zshrc` など）は chezmoi で管理している。編集前に `chezmoi source-path <ファイル>` で確認し、管理下ならソース（`~/Developer/ghq/github.com/shsw228/dotfiles/chezmoi/`）を編集して `chezmoi apply` で反映する。実ファイルを直接書き換えない
 {{- if dig "profile" "is_personal_pc" false . }}
 - ユーザー固有のドメイン知識（自宅・機材・ホームサーバー・個人プロジェクトの過去の調査や設計）が要るときは、推測する前に `life-knowledge` スキルで Life Vault を検索する
 {{- else }}
@@ -35,11 +36,13 @@
   ```
 - headless 許可は `xcrun mcp-server status` が `Permission: enabled` なら不要。必要な場合の `sudo mcp-server enable` はユーザーに実行してもらう。
 - 対象プロジェクトは `xcrun mcp-server open <path>.xcodeproj` で開く。
+- **アプリを起動し直すときは、MCP の `StopProject` で今のアプリを止めてから `RunProject` で起動する。** 画面のない Xcode で開いたプロジェクトの `RunProject` は前のアプリを止めないので、飛ばすと 2 つ起動する。止めるのに `kill` などのターミナル操作は使わない。
 - `xcodebuild` を使うのは MCP がどうしても使えないときだけ。その場合は理由を伝える。
 
 ## 変更の扱い
 - 破壊的操作は事前確認する
 - 既存の未コミット変更は勝手に消さない
+- 常駐アプリ（ランチャー、メニューバーアプリ、ターミナルなど）を起動・再起動しない。必要ならユーザーに頼む
 - 変更箇所は簡潔に説明する
 
 ## コミット・PR規則
